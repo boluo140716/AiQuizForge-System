@@ -35,8 +35,9 @@ class NoteViewSet(viewsets.ModelViewSet):
     ordering_fields=['created_at','updated_at','title']
 
     def get_queryset(self):
-        return Note.objects.filter(user=self.request.user).select_related('notebook')
+        return Note.objects.filter(user=self.request.user).select_related('notebook')  
     
+    # 自定义序列化器，根据操作返回不同的序列化器
     def get_serializer_class(self):
         if self.action=='list':
             return NoteListSerializer

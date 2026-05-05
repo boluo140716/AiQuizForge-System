@@ -18,6 +18,24 @@ const routes = [
     name: 'Register',
     component: () => import('@/views/Register.vue'),
     meta: { guest: true }
+  },
+  {
+    path: '/notes',
+    name: 'NoteList',
+    component: () => import('@/views/NoteList.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/notes/new',
+    name: 'NoteCreate',
+    component: () => import('@/views/NoteEdit.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/notes/:id/edit',
+    name: 'NoteEdit',
+    component: () => import('@/views/NoteEdit.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
@@ -26,7 +44,6 @@ const router = createRouter({
   routes
 })
 
-// 简单的导航守卫
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('access_token')
   if (to.meta.requiresAuth && !token) {
