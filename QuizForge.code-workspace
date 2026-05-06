@@ -1,0 +1,19 @@
+{
+    "folders": [
+        {
+            "name": "Django后端(backend)",
+            "path": "backend"
+        },
+        {
+            "name": "FastAPI-AI服务(ai_service)",
+            "path": "ai_service"
+        },
+        {
+            "name": "Vue前端(frontend)",
+            "path": "frontend"
+        }
+    ],
+    "settings": {
+        "python.defaultInterpreterPath": "${workspaceFolder:Django后端}/venv/Scripts/python.exe"
+    }
+}
