@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Note,Notebook
+from .models import Note,Notebook,Quiz,Question
 from .utils import md_to_plain_text
 
 class NotebookSerializer(serializers.ModelSerializer):
@@ -54,3 +54,22 @@ class NoteCreateUpdateSerializer(serializers.ModelSerializer):
         if 'content_md' in validated_data:
             validated_data['content_plain']=md_to_plain_text(validated_data['content_md'])
         return super().update(instance, validated_data)
+    
+class GenerateQuizSerializer(serializers.Serializer):
+    question_count = serializers.IntegerField(default=5, min_value=1, max_value=10)
+    
+class QuizStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=Quiz
+        fields=['id','status','error_message','created_at','question_count']
+
+class QuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=Question
+        fields=['id','stem','options']
+
+class QuestionWithAnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = ['id', 'stem', 'options', 'answer', 'explanation']
+

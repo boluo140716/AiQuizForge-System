@@ -14,10 +14,12 @@ USE_MOCK = config('USE_MOCK', default='false').lower() == 'true'
 
 
 def _call_llm(prompt: str) -> str:   # 调用大模型
+    # 初始化 OpenAI 客户端
     client = OpenAI(
         api_key=config('LLM_API_KEY'),
         base_url=config('LLM_BASE_URL', default='https://api.openai.com/v1')
     )
+    # 调用大模型
     response = client.chat.completions.create(
         model=config('LLM_MODEL', default='qwen3.6-plus'),
         messages=[

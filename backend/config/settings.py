@@ -129,7 +129,7 @@ REST_FRAMEWORK = {
 
 # ===== JWT 配置 =====
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=180),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
@@ -140,3 +140,17 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+
+
+#异步任务配置
+CELERY_BROKER_URL = f'redis://:{config("REDIS_PASSWORD", default="")}@{config("REDIS_HOST", default="127.0.0.1")}:{config("REDIS_PORT", default="6379")}/0'
+CELERY_RESULT_BACKEND = f'redis://:{config("REDIS_PASSWORD", default="")}@{config("REDIS_HOST", default="127.0.0.1")}:{config("REDIS_PORT", default="6379")}/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Shanghai'
+
+# ===== AI 服务配置 =====
+AI_SERVICE_URL = config('AI_SERVICE_URL', default='http://127.0.0.1:8001')
+AI_SERVICE_TOKEN = config('AI_SERVICE_TOKEN', default='quizforge-internal-secret-token-2026')
