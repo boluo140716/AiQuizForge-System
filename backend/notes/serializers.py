@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Note,Notebook,Quiz,Question
+from .models import Note,Notebook,Quiz,Question,WrongQuestion,QuizAttempt
 from .utils import md_to_plain_text
 
 class NotebookSerializer(serializers.ModelSerializer):
@@ -72,4 +72,36 @@ class QuestionWithAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = ['id', 'stem', 'options', 'answer', 'explanation']
+
+class AnswerItemSerializer(serializers.Serializer):
+    question_id = serializers.IntegerField(required=True)
+    selected = serializers.CharField(required=True,max_length=10)
+
+class SubmitAnswerSerializer(serializers.Serializer):
+    answers=serializers.ListField(child=AnswerItemSerializer(),min_length=1)
+
+class QuizAttemptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=QuizAttempt
+        fields=['id','quiz','score','total','correct_rate','answers_detail','completed_at']
+
+class WrongQuestionSerializer(serializers.ModelSerializer):
+    question_stem = serializers.CharField(source='question.stem', read_only=True)
+    question_options = serializers.JSONField(source='question.options', read_only=True)
+    question_answer = serializers.CharField(source='question.answer', read_only=True)
+    question_explanation = serializers.CharField(source='question.explanation', read_only=True)
+    quiz_id = serializers.IntegerField(source='quiz.id', read_only=True)
+    note_title = serializers.CharField(source='quiz.note.title', read_only=True)
+
+    class Meta:
+        model = WrongQuestion
+        fields = [
+            'id', 'question', 'question_stem', 'question_options',
+            'question_answer', 'question_explanation',
+            'quiz_id', 'note_title', 'user_answer',
+            'wrong_count', 'last_wrong_at'
+        ]
+
+
+
 

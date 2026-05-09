@@ -3,8 +3,10 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Note,Notebook,Quiz,Question
-from .serializers import NoteListSerializer,NotebookSerializer,NoteCreateUpdateSerializer,NoteDetailSerializer,GenerateQuizSerializer,QuizStatusSerializer,QuestionSerializer,QuestionWithAnswerSerializer
+from .models import Note,Notebook,Quiz,Question,WrongQuestion,QuizAttempt
+from .serializers import (NoteListSerializer,NotebookSerializer,NoteCreateUpdateSerializer,
+                          NoteDetailSerializer,GenerateQuizSerializer,QuizStatusSerializer,
+                          QuestionSerializer,SubmitAnswerSerializer,QuizAttemptSerializer,WrongQuestionSerializer,QuestionWithAnswerSerializer)
 from .task import generate_quiz
 
 class NotebookViewSet(viewsets.ModelViewSet):
@@ -111,6 +113,106 @@ class QuizViewSet(viewsets.GenericViewSet):
             return Response({'detail': '测验尚未生成完毕'}, status=status.HTTP_400_BAD_REQUEST)
 
         questions = quiz.questions.all()
-        serializer = QuestionSerializer(questions, many=True)
+        serializer = QuestionWithAnswerSerializer(questions, many=True)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], url_path='attempt')
+    def attempt(self, request, pk=None):
+        # 校验测验是否存在且属于当前用户
+        try:
+            quiz = Quiz.objects.get(id=pk, user=request.user)
+        except Quiz.DoesNotExist:
+            return Response({'detail': '测验不存在'}, status=status.HTTP_404_NOT_FOUND)
         
+        #测验必须生成完毕才能答题
+        if quiz.status != 'completed':
+            return Response({'detail': '测验尚未生成完毕'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 校验输入答案参数是否符合要求
+        serializer = SubmitAnswerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        answers = serializer.validated_data['answers']
+
+        #获取所有题目
+        questions = Question.objects.filter(quiz=quiz)
+        question_map={q.id:q for q in questions}
+
+        #验证提交的question_id都属于本次测验
+        submitted_ids={a['question_id'] for a in answers}
+        valid_ids=set(question_map.keys())
+        if not submitted_ids.issubset(valid_ids):
+            return Response({'detail': '提交的题目ID包含不存在的题目'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        #逐个验证答案
+        score = 0
+        total = len(questions)
+        answers_detail = []
+
+        for answer_item in answers:
+            qid=answer_item['question_id']
+            selected=answer_item['selected']
+            question=question_map[qid]
+            correct=question.answer
+            is_right=(selected.strip().upper()==correct.strip().upper())
+
+            if is_right:
+                score+=1
+            else:
+                wrong_q,created=WrongQuestion.objects.get_or_create(
+                    user=request.user,
+                    question=question,
+                    defaults={
+                        'quiz':quiz,
+                        'user_answer':selected,
+                        'wrong_count':1
+                    }
+                )
+                if not created:
+                    # 之前就错过，更新错误次数和最后错误时间
+                    wrong_q.wrong_count += 1
+                    wrong_q.user_answer = selected
+                    wrong_q.quiz = quiz
+                    wrong_q.save()
+            
+            answers_detail.append({
+                'question_id': qid,
+                'stem': question.stem,
+                'options': question.options,
+                'selected': selected,
+                'correct': correct,
+                'is_right': is_right,
+                'explanation': question.explanation if not is_right else None
+            })
+        #创建答题记录
+        correct_rate=score/total if total>0 else 0.0
+        attempt_record=QuizAttempt.objects.create(
+            quiz=quiz,
+            user=request.user,
+            score=score,
+            total=total,
+            correct_rate=round(correct_rate,2), #保留两位小数
+            answers_detail=answers_detail
+        )
+
+        return Response({
+            'attempt_id': attempt_record.id,
+            'score': score,
+            'total': total,
+            'correct_rate': round(correct_rate, 2),
+            'answers_detail': answers_detail
+        }, status=status.HTTP_200_OK)
+
+    
+
+    #获取所有答题记录
+    @action(detail=True, methods=['get'], url_path='attempts')
+    def attempts(self, request, pk=None):
+
+        try:    
+            quiz = Quiz.objects.get(id=pk, user=request.user)
+        except Quiz.DoesNotExist:
+            return Response({'detail': '测验不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+        attempts = QuizAttempt.objects.filter(quiz=quiz,user=request.user)
+        serializer = QuizAttemptSerializer(attempts, many=True)
+        return Response(serializer.data)

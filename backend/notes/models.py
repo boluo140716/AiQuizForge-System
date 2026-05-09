@@ -77,3 +77,39 @@ class Question(models.Model):
     def __str__(self):
         return self.stem[:50]
 
+class QuizAttempt(models.Model):
+    '''测验尝试记录'''
+    quiz=models.ForeignKey(Quiz,on_delete=models.CASCADE,related_name="attempts",verbose_name="所属测验")
+    user=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="quiz_attempts",verbose_name="用户")
+    score=models.IntegerField(default=0,verbose_name="得分")
+    total=models.IntegerField(default=5,verbose_name="总题数")
+    correct_rate=models.FloatField(default=0.0,verbose_name="正确率")
+    answers_detail=models.JSONField(default=list,verbose_name="答题详情")
+    completed_at=models.DateTimeField(auto_now_add=True,verbose_name="完成时间")
+
+    class Meta:
+        db_table = 'quiz_attempts'
+        verbose_name = '答题记录'
+        verbose_name_plural = verbose_name
+        ordering = ['-completed_at']
+    
+    def __str__(self):
+        return f'{self.user.username} 的测验,得分：{self.score}/{self.total}'
+    
+class WrongQuestion(models.Model):
+    '''错题记录'''
+    user=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="wrong_questions",verbose_name="用户")
+    question=models.ForeignKey(Question,on_delete=models.CASCADE,related_name="wrong_questions",verbose_name="错题")
+    quiz=models.ForeignKey(Quiz,on_delete=models.CASCADE,related_name="wrong_questions",verbose_name="所属测验")
+    user_answer=models.CharField(max_length=255,verbose_name="用户答案")
+    wrong_count=models.IntegerField(default=1,verbose_name="错题次数")
+    last_wrong_at=models.DateTimeField(auto_now=True,verbose_name="上次错题时间")
+
+    class Meta:
+        db_table = 'wrong_questions'
+        verbose_name = '错题记录'
+        verbose_name_plural = verbose_name
+        ordering = ['-last_wrong_at']
+
+    def __str__(self):
+        return f'{self.user.username} 的错题记录 ({self.question.stem[:30]})'
