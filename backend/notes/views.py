@@ -53,10 +53,12 @@ class NoteViewSet(viewsets.ModelViewSet):
         # 自动绑定用户
         serializer.save(user=self.request.user)
 
+#测验视图
 class QuizViewSet(viewsets.GenericViewSet):
     serializer_class = QuizStatusSerializer  # 设置默认序列化器，避免错误
     permission_classes = [permissions.IsAuthenticated]
 
+    # 生成测验接口
     @action(detail=False, methods=['post'], url_path='generate/(?P<note_id>\\d+)')
     def generate(self, request, note_id=None):
         # 校验笔记是否存在且属于当前用户
@@ -216,3 +218,104 @@ class QuizViewSet(viewsets.GenericViewSet):
         attempts = QuizAttempt.objects.filter(quiz=quiz,user=request.user)
         serializer = QuizAttemptSerializer(attempts, many=True)
         return Response(serializer.data)
+    
+     #测验回顾
+    @action(detail=True, methods=['get'], url_path='review')
+    def review(self, request, pk=None):
+        try:
+            quiz=Quiz.objects.get(id=pk, user=request.user)
+        except Quiz.DoesNotExist:
+            return Response({'detail': '测验不存在'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if quiz.status!='completed':
+            return Response({'detail': '测验未完成'}, status=status.HTTP_400_BAD_REQUEST)
+        #获取题目数据
+        questions=quiz.questions.all()
+        question_data=QuestionWithAnswerSerializer(questions, many=True).data
+
+        #最近一次答题记录
+        last_attempt=QuizAttempt.objects.filter(quiz=quiz,user=request.user).order_by('-completed_at').first()
+        attempt_data=QuizAttemptSerializer(last_attempt).data if last_attempt else None
+
+        return Response({
+            'quiz_id': quiz.id,
+            'note_title': quiz.note.title,
+            'question_count': quiz.question_count,
+            'questions': question_data,
+            'last_attempt': attempt_data
+        })
+    
+#错题视图
+class WrongQuestionViewSet(viewsets.GenericViewSet):
+    serializer_class = WrongQuestionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    #获取错题列表
+    def get_queryset(self):
+        return WrongQuestion.objects.filter(user=self.request.user).select_related('question','quiz','quiz__note')
+    
+    #获取当前用户错题
+    @action(detail=False, methods=['get'], url_path='list')
+    def wrong_list(self, request):
+        queryset=self.get_queryset()
+        #可选筛选，按测验
+        quiz_id=request.query_params.get('quiz_id')
+        if quiz_id:
+            queryset=queryset.filter(quiz_id=quiz_id)
+
+        #可选筛选，按笔记
+        notebook_id=request.query_params.get('notebook_id')
+        if notebook_id:
+            queryset=queryset.filter(quiz_note__notebook_id=notebook_id)
+        #按最后错误时间排序
+        queryset=queryset.order_by('-last_wrong_at')
+
+        #分页
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    #错题重练接口
+    @action(detail=False, methods=['post'], url_path='re-practice')
+    def re_practice(self, request):
+        limit=int(request.data.get('limit', 5)) #默认5道
+        quiz_id=request.data.get('quiz_id')
+        notebook_id=request.data.get('notebook_id')
+
+        queryset=self.get_queryset()
+        #可选筛选，按测验
+        if quiz_id:
+            queryset=queryset.filter(quiz_id=quiz_id)
+
+        #可选筛选，按笔记
+        if notebook_id:
+            queryset=queryset.filter(quiz_note__notebook_id=notebook_id)
+        #按错误次数降序排序
+        queryset=queryset.order_by('-wrong_count')
+        #获取去重后的题目ID
+        question_ids=queryset.values_list('question_id', flat=True).distinct()[:limit]
+        if not question_ids:
+            return Response({'detail': '错题本为空'}, status=status.HTTP_404_NOT_FOUND)
+        #创建一个临时测验记录
+        first_wrong = WrongQuestion.objects.filter(
+            user=request.user, question_id__in=question_ids
+        ).first()
+        temp_quiz = Quiz.objects.create(
+            note=first_wrong.quiz.note,
+            user=request.user,
+            question_count=len(question_ids),
+            status='processing'
+        )
+        # 获取这些题目
+        questions = Question.objects.filter(id__in=question_ids)
+        serializer = QuestionWithAnswerSerializer(questions, many=True)
+        return Response({
+            'practice_quiz_id': temp_quiz.id,
+            'questions': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+   
