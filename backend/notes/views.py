@@ -318,4 +318,15 @@ class WrongQuestionViewSet(viewsets.GenericViewSet):
             'questions': serializer.data
         }, status=status.HTTP_200_OK)
     
-   
+    #错题移除接口
+    @action(detail=True, methods=['delete'], url_path='remove')
+    def remove(self, request, pk=None):
+        try:
+            wrong_q=WrongQuestion.objects.get(id=pk, user=request.user)
+        except WrongQuestion.DoesNotExist:
+            return Response({'detail': '错题不存在'}, status=status.HTTP_404_NOT_FOUND)
+        wrong_q.delete()
+        return Response(
+            {'detail': '错题已移除'}
+            ,status=status.HTTP_200_OK
+        )
