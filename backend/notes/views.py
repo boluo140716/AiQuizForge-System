@@ -2,6 +2,8 @@ from rest_framework import viewsets,permissions,filters,status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.throttling import UserRateThrottle
+from config.throttles import GenerateQuizRateThrottle
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Note,Notebook,Quiz,Question,WrongQuestion,QuizAttempt
 from .serializers import (NoteListSerializer,NotebookSerializer,NoteCreateUpdateSerializer,
@@ -59,7 +61,7 @@ class QuizViewSet(viewsets.GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     # 生成测验接口
-    @action(detail=False, methods=['post'], url_path='generate/(?P<note_id>\\d+)')
+    @action(detail=False, methods=['post'], url_path='generate/(?P<note_id>\\d+)',throttle_classes=[GenerateQuizRateThrottle])
     def generate(self, request, note_id=None):
         # 校验笔记是否存在且属于当前用户
         try:
