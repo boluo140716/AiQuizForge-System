@@ -58,6 +58,26 @@ class NoteCreateUpdateSerializer(serializers.ModelSerializer):
 class GenerateQuizSerializer(serializers.Serializer):
     question_count = serializers.IntegerField(default=5, min_value=1, max_value=10)
     
+class QuizListSerializer(serializers.ModelSerializer):
+    note_title = serializers.CharField(source='note.title', read_only=True)
+    attempt_count = serializers.SerializerMethodField()
+    best_score = serializers.SerializerMethodField()
+    last_attempt_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Quiz
+        fields = ['id', 'note_title', 'question_count', 'status', 'error_message',
+                  'created_at', 'attempt_count', 'best_score', 'last_attempt_at']
+
+    def get_attempt_count(self, obj):
+        return getattr(obj, '_attempt_count', 0)
+
+    def get_best_score(self, obj):
+        return getattr(obj, '_best_score', 0)
+
+    def get_last_attempt_at(self, obj):
+        return getattr(obj, '_last_attempt_at', None)
+
 class QuizStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model=Quiz
@@ -92,13 +112,15 @@ class WrongQuestionSerializer(serializers.ModelSerializer):
     question_explanation = serializers.CharField(source='question.explanation', read_only=True)
     quiz_id = serializers.IntegerField(source='quiz.id', read_only=True)
     note_title = serializers.CharField(source='quiz.note.title', read_only=True)
+    notebook_id = serializers.IntegerField(source='quiz.note.notebook_id', read_only=True)
+    notebook_name = serializers.CharField(source='quiz.note.notebook.name', read_only=True)
 
     class Meta:
         model = WrongQuestion
         fields = [
             'id', 'question', 'question_stem', 'question_options',
             'question_answer', 'question_explanation',
-            'quiz_id', 'note_title', 'user_answer',
+            'quiz_id', 'note_title', 'notebook_id', 'notebook_name', 'user_answer',
             'wrong_count', 'last_wrong_at'
         ]
 

@@ -7,7 +7,7 @@ from config.throttles import GenerateQuizRateThrottle
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Note,Notebook,Quiz,Question,WrongQuestion,QuizAttempt
 from .serializers import (NoteListSerializer,NotebookSerializer,NoteCreateUpdateSerializer,
-                          NoteDetailSerializer,GenerateQuizSerializer,QuizStatusSerializer,
+                          NoteDetailSerializer,GenerateQuizSerializer,QuizListSerializer,QuizStatusSerializer,
                           QuestionSerializer,SubmitAnswerSerializer,QuizAttemptSerializer,WrongQuestionSerializer,QuestionWithAnswerSerializer)
 from .task import generate_quiz
 
@@ -59,6 +59,19 @@ class NoteViewSet(viewsets.ModelViewSet):
 class QuizViewSet(viewsets.GenericViewSet):
     serializer_class = QuizStatusSerializer  # 设置默认序列化器，避免错误
     permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request):
+        """获取用户的所有测验列表（含答题统计）"""
+        quizzes = Quiz.objects.filter(user=request.user).select_related('note').order_by('-created_at')
+
+        data = []
+        for q in quizzes:
+            attempts = list(QuizAttempt.objects.filter(quiz=q).order_by('-completed_at'))
+            q._attempt_count = len(attempts)
+            q._best_score = max((a.score for a in attempts), default=0)
+            q._last_attempt_at = attempts[0].completed_at if attempts else None
+            data.append(QuizListSerializer(q).data)
+        return Response(data)
 
     # 生成测验接口
     @action(detail=False, methods=['post'], url_path='generate/(?P<note_id>\\d+)',throttle_classes=[GenerateQuizRateThrottle])

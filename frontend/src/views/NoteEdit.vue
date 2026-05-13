@@ -1,40 +1,68 @@
 <template>
-  <div>
-    <el-button @click="$router.back()" style="margin-bottom: 16px;">← 返回</el-button>
+  <div class="note-edit-page">
+    <div class="edit-container">
+      <el-button @click="$router.back()" class="back-btn">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
 
-    <el-form :model="form" label-position="top">
-      <el-form-item label="标题">
-        <el-input v-model="form.title" placeholder="请输入笔记标题" />
-      </el-form-item>
+      <el-card class="edit-card">
+        <template #header>
+          <div class="card-header">
+            <h2>{{ isEdit ? '编辑笔记' : '创建笔记' }}</h2>
+          </div>
+        </template>
 
-      <el-form-item label="所属笔记本">
-        <el-select v-model="form.notebook" placeholder="请选择笔记本">
-          <el-option
-            v-for="nb in store.notebooks"
-            :key="nb.id"
-            :label="nb.name"
-            :value="nb.id"
-          />
-        </el-select>
-      </el-form-item>
+        <el-form :model="form" label-position="top" class="edit-form">
+          <el-form-item label="标题">
+            <el-input
+              v-model="form.title"
+              placeholder="请输入笔记标题"
+              size="large"
+            />
+          </el-form-item>
 
-      <el-form-item label="内容（支持 Markdown）">
-        <div ref="editorRef" style="height: 500px;" />
-      </el-form-item>
+          <el-form-item label="所属笔记本">
+            <el-select v-model="form.notebook" placeholder="请选择笔记本" size="large" style="width: 100%">
+              <el-option
+                v-for="nb in store.notebooks"
+                :key="nb.id"
+                :label="nb.name"
+                :value="nb.id"
+              />
+            </el-select>
+          </el-form-item>
 
-      <el-form-item label="标签（用逗号分隔）">
-        <el-input v-model="tagInput" placeholder="例如：django, vue, python" />
-      </el-form-item>
+          <el-form-item label="内容（支持 Markdown）">
+            <div ref="editorRef" class="editor-wrapper" />
+          </el-form-item>
 
-      <div style="margin-top: 20px;">
-        <el-button type="primary" @click="handleSave" :loading="saving">
-          {{ isEdit ? '保存修改' : '创建笔记' }}
-        </el-button>
-        <el-button v-if="isEdit" type="danger" @click="handleDelete" :loading="deleting">
-          删除笔记
-        </el-button>
-      </div>
-    </el-form>
+          <el-form-item label="标签（用逗号分隔）">
+            <el-input
+              v-model="tagInput"
+              placeholder="例如：django, vue, python"
+              size="large"
+            />
+          </el-form-item>
+
+          <div v-if="isEdit" class="quiz-action">
+            <el-button type="warning" :loading="generating" @click="handleGenerateQuiz" size="large">
+              <el-icon><MagicStick /></el-icon>
+              生成测验
+            </el-button>
+          </div>
+
+          <div class="form-actions">
+            <el-button type="primary" @click="handleSave" :loading="saving" size="large" class="save-btn">
+              {{ isEdit ? '保存修改' : '创建笔记' }}
+            </el-button>
+            <el-button v-if="isEdit" type="danger" @click="handleDelete" :loading="deleting" size="large">
+              删除笔记
+            </el-button>
+          </div>
+        </el-form>
+      </el-card>
+    </div>
   </div>
 </template>
 
@@ -42,8 +70,9 @@
 import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useNotebookStore } from '@/stores/notebook'
-import { createNote, getNoteDetail, updateNote, deleteNote } from '@/api'
+import { createNote, getNoteDetail, updateNote, deleteNote, generateQuiz, getQuizStatus } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowLeft, MagicStick } from '@element-plus/icons-vue'
 import Editor from '@toast-ui/editor'
 import '@toast-ui/editor/dist/toastui-editor.css'
 
@@ -63,10 +92,10 @@ const form = reactive({
 const tagInput = ref('')
 const saving = ref(false)
 const deleting = ref(false)
+const generating = ref(false)
+const currentQuizId = ref(null)
 
-// 初始化编辑器
 onMounted(async () => {
-  // 确保笔记本列表已加载（用于下拉选择）
   await store.fetchNotebooks()
 
   if (isEdit) {
@@ -83,7 +112,6 @@ onMounted(async () => {
     }
   }
 
-  // 创建编辑器（无代码高亮插件，稳定优先）
   if (editorRef.value) {
     editor = new Editor({
       el: editorRef.value,
@@ -100,7 +128,6 @@ onBeforeUnmount(() => {
   }
 })
 
-// 保存笔记
 const handleSave = async () => {
   if (!form.title.trim() || !editor.getMarkdown().trim()) {
     ElMessage.warning('标题和内容不能为空')
@@ -129,7 +156,6 @@ const handleSave = async () => {
   }
 }
 
-// 删除笔记
 const handleDelete = async () => {
   try {
     await ElMessageBox.confirm('确定删除这篇笔记吗？', '警告', { type: 'warning' })
@@ -138,9 +164,192 @@ const handleDelete = async () => {
     ElMessage.success('笔记已删除')
     router.push('/notes')
   } catch {
-    // 用户取消
   } finally {
     deleting.value = false
   }
 }
+
+const handleGenerateQuiz = async () => {
+  try {
+    await ElMessageBox.confirm('是否以此笔记内容生成测验？', '生成测验', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+
+    generating.value = true
+    const res = await generateQuiz(route.params.id, 5)
+    currentQuizId.value = res.data.quiz_id
+
+    ElMessage.success('测验生成中，请稍候...')
+
+    // 轮询检查生成状态
+    const pollStatus = async () => {
+      const statusRes = await getQuizStatus(currentQuizId.value)
+      const quiz = statusRes.data
+
+      if (quiz.status === 'completed') {
+        ElMessage.success('测验生成完成！')
+        router.push(`/quiz/${currentQuizId.value}`)
+      } else if (quiz.status === 'failed') {
+        ElMessage.error('测验生成失败：' + (quiz.error_message || '未知错误'))
+        generating.value = false
+      } else {
+        // 继续轮询
+        setTimeout(pollStatus, 2000)
+      }
+    }
+
+    setTimeout(pollStatus, 2000)
+  } catch (err) {
+    if (err !== 'cancel') {
+      ElMessage.error(err.response?.data?.detail || '生成失败')
+    }
+  } finally {
+    generating.value = false
+  }
+}
 </script>
+
+<style scoped>
+.note-edit-page {
+  min-height: 100vh;
+  padding: 24px;
+  position: relative;
+  background: #ffffff;
+}
+
+.edit-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.back-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: #fff;
+  border-radius: 24px;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.back-btn:hover {
+  transform: translateX(-4px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.edit-card {
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border: none;
+}
+
+.edit-card :deep(.el-card__header) {
+  border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+  padding: 20px 24px;
+}
+
+.edit-card :deep(.el-card__body) {
+  padding: 24px;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.edit-form :deep(.el-form-item__label) {
+  font-weight: 600;
+  color: #303133;
+  font-size: 15px;
+}
+
+.edit-form :deep(.el-input__wrapper),
+.edit-form :deep(.el-select .el-input__wrapper) {
+  border-radius: 12px;
+  padding: 4px 16px;
+  background: #f8f9fc;
+  box-shadow: none;
+  border: 1px solid #e4e7ed;
+  transition: all 0.3s ease;
+}
+
+.edit-form :deep(.el-input__wrapper:hover),
+.edit-form :deep(.el-select .el-input__wrapper:hover) {
+  border-color: #667eea;
+}
+
+.edit-form :deep(.el-input__wrapper.is-focus),
+.edit-form :deep(.el-select .el-input__wrapper.is-focus) {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.editor-wrapper {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e4e7ed;
+}
+
+.quiz-action {
+  margin-bottom: 24px;
+}
+
+.quiz-action :deep(.el-button--warning) {
+  background: linear-gradient(135deg, #e6a23c 0%, #fbbc24 100%);
+  border: none;
+  border-radius: 24px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(230, 162, 60, 0.3);
+  transition: all 0.3s ease;
+}
+
+.quiz-action :deep(.el-button--warning:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(230, 162, 60, 0.4);
+}
+
+.form-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.save-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 24px;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 12px 32px;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+}
+
+.save-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.save-btn:disabled {
+  opacity: 0.7;
+}
+
+.form-actions :deep(.el-button--danger) {
+  background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+  border: none;
+  border-radius: 24px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);
+  transition: all 0.3s ease;
+}
+
+.form-actions :deep(.el-button--danger:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(245, 101, 101, 0.4);
+}
+</style>

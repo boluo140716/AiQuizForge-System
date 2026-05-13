@@ -1,17 +1,52 @@
 <template>
   <div class="login-container">
+    <div class="login-bg"></div>
     <el-card class="login-card">
-      <h2>登录 QuizForge</h2>
-      <el-form :model="form" label-position="top">
-        <el-form-item label="用户名">
-          <el-input v-model="form.username" placeholder="请输入用户名"></el-input>
+      <div class="card-header">
+        <h2>欢迎回来</h2>
+        <p class="subtitle">登录 QuizForge，继续你的学习之旅</p>
+      </div>
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-position="top"
+        @keyup.enter="handleLogin"
+      >
+        <el-form-item label="用户名" prop="username">
+          <el-input
+            v-model="form.username"
+            placeholder="请输入用户名"
+            :prefix-icon="User"
+            clearable
+            autofocus
+          />
         </el-form-item>
-        <el-form-item label="密码">
-          <el-input v-model="form.password" type="password" show-password placeholder="请输入密码"></el-input>
+        <el-form-item label="密码" prop="password">
+          <el-input
+            v-model="form.password"
+            type="password"
+            show-password
+            placeholder="请输入密码"
+            :prefix-icon="Lock"
+            clearable
+          />
         </el-form-item>
-        <el-button type="primary" @click="handleLogin" :loading="loading" style="width:100%">登录</el-button>
+        <el-form-item>
+          <el-button
+            type="primary"
+            @click="handleLogin"
+            :loading="loading"
+            :disabled="loading"
+            class="login-btn"
+          >
+            {{ loading ? '登录中...' : '立即登录' }}
+          </el-button>
+        </el-form-item>
       </el-form>
-      <p class="tip">还没有账号？<router-link to="/register">立即注册</router-link></p>
+      <div class="footer-tip">
+        还没有账号？<router-link to="/register">立即注册</router-link>
+      </div>
     </el-card>
   </div>
 </template>
@@ -21,36 +56,57 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { User, Lock } from '@element-plus/icons-vue'
 
 const router = useRouter()
+const formRef = ref(null)
+const loading = ref(false)
+
 const form = reactive({
   username: '',
   password: ''
 })
-const loading = ref(false)
+
+const rules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' }
+  ]
+}
 
 const handleLogin = async () => {
-  if (!form.username || !form.password) {
-    ElMessage.warning('请填写用户名和密码')
-    return
-  }
-  loading.value = true
-  try {
-    const res = await axios.post('/api/v1/auth/login/', {
-      username: form.username,
-      password: form.password
-    })
-    // 存储令牌
-    localStorage.setItem('access_token', res.data.access)
-    localStorage.setItem('refresh_token', res.data.refresh)
-    axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.access}`
-    ElMessage.success('登录成功')
-    router.push('/')
-  } catch (error) {
-    ElMessage.error(error.response?.data?.detail || '登录失败')
-  } finally {
-    loading.value = false
-  }
+  if (!formRef.value) return
+
+  await formRef.value.validate(async (valid) => {
+    if (!valid) return
+
+    loading.value = true
+    try {
+      const res = await axios.post('/api/v1/auth/login/', {
+        username: form.username,
+        password: form.password
+      })
+
+      // 存储令牌
+      localStorage.setItem('access_token', res.data.access)
+      localStorage.setItem('refresh_token', res.data.refresh)
+      axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.access}`
+
+      ElMessage.success('登录成功')
+      router.push('/')
+    } catch (error) {
+      const detail = error.response?.data?.detail
+      if (detail) {
+        ElMessage.error(detail)
+      } else {
+        ElMessage.error('登录失败，请检查用户名和密码')
+      }
+    } finally {
+      loading.value = false
+    }
+  })
 }
 </script>
 
@@ -59,14 +115,115 @@ const handleLogin = async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  background-color: #f5f7fa;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
 }
+
+.login-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  z-index: 0;
+}
+
+.login-bg::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+  animation: float 15s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-5%, -5%); }
+}
+
 .login-card {
+  position: relative;
+  z-index: 1;
   width: 400px;
+  padding: 10px;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
 }
-.tip {
-  margin-top: 16px;
+
+.card-header {
   text-align: center;
+  margin-bottom: 30px;
+}
+
+.card-header h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #909399;
+}
+
+.login-btn {
+  width: 100%;
+  height: 44px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.login-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.login-btn:disabled {
+  opacity: 0.7;
+}
+
+.footer-tip {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 14px;
+  color: #606266;
+}
+
+.footer-tip a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.footer-tip a:hover {
+  text-decoration: underline;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #303133;
+}
+
+:deep(.el-input__wrapper) {
+  border-radius: 8px;
+  padding: 4px 12px;
+}
+
+:deep(.el-input__wrapper:focus-within) {
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
 }
 </style>

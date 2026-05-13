@@ -1,23 +1,70 @@
 <template>
   <div class="register-container">
+    <div class="register-bg"></div>
     <el-card class="register-card">
-      <h2>注册 QuizForge</h2>
-      <el-form :model="form" label-position="top">
-        <el-form-item label="用户名">
-          <el-input v-model="form.username" placeholder="请输入用户名"></el-input>
+      <div class="card-header">
+        <h2>注册 QuizForge</h2>
+        <p class="subtitle">开启你的智能学习之旅</p>
+      </div>
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-position="top"
+        @keyup.enter="handleRegister"
+      >
+        <el-form-item label="用户名" prop="username">
+          <el-input
+            v-model="form.username"
+            placeholder="请输入用户名"
+            :prefix-icon="User"
+            clearable
+            autofocus
+          />
         </el-form-item>
-        <el-form-item label="邮箱">
-          <el-input v-model="form.email" placeholder="请输入邮箱"></el-input>
+        <el-form-item label="邮箱" prop="email">
+          <el-input
+            v-model="form.email"
+            placeholder="请输入邮箱（可选）"
+            :prefix-icon="Message"
+            clearable
+          />
         </el-form-item>
-        <el-form-item label="密码">
-          <el-input v-model="form.password" type="password" show-password placeholder="请输入密码"></el-input>
+        <el-form-item label="密码" prop="password">
+          <el-input
+            v-model="form.password"
+            type="password"
+            show-password
+            placeholder="请输入密码（至少8位）"
+            :prefix-icon="Lock"
+            clearable
+          />
         </el-form-item>
-        <el-form-item label="确认密码">
-          <el-input v-model="form.password2" type="password" show-password placeholder="请再次输入密码"></el-input>
+        <el-form-item label="确认密码" prop="password2">
+          <el-input
+            v-model="form.password2"
+            type="password"
+            show-password
+            placeholder="请再次输入密码"
+            :prefix-icon="Lock"
+            clearable
+          />
         </el-form-item>
-        <el-button type="primary" @click="handleRegister" :loading="loading" style="width:100%">注册</el-button>
+        <el-form-item>
+          <el-button
+            type="primary"
+            @click="handleRegister"
+            :loading="loading"
+            :disabled="loading"
+            class="register-btn"
+          >
+            {{ loading ? '注册中...' : '立即注册' }}
+          </el-button>
+        </el-form-item>
       </el-form>
-      <p class="tip">已有账号？<router-link to="/login">去登录</router-link></p>
+      <div class="footer-tip">
+        已有账号？<router-link to="/login">立即登录</router-link>
+      </div>
     </el-card>
   </div>
 </template>
@@ -27,49 +74,90 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { User, Message, Lock } from '@element-plus/icons-vue'
 
 const router = useRouter()
+const formRef = ref(null)
+const loading = ref(false)
+
 const form = reactive({
   username: '',
   email: '',
   password: '',
   password2: ''
 })
-const loading = ref(false)
+
+// 自定义校验：确认密码
+const validatePassword2 = (rule, value, callback) => {
+  if (value === '') {
+    callback(new Error('请再次输入密码'))
+  } else if (value !== form.password) {
+    callback(new Error('两次输入的密码不一致'))
+  } else {
+    callback()
+  }
+}
+
+const rules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, max: 20, message: '用户名长度在 3-20 个字符', trigger: 'blur' }
+  ],
+  email: [
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 8, message: '密码至少需要 8 位', trigger: 'blur' }
+  ],
+  password2: [
+    { validator: validatePassword2, trigger: 'blur' }
+  ]
+}
 
 const handleRegister = async () => {
-  if (!form.username || !form.email || !form.password || !form.password2) {
-    ElMessage.warning('请填写所有字段')
-    return
-  }
-  if (form.password !== form.password2) {
-    ElMessage.warning('两次密码不一致')
-    return
-  }
-  loading.value = true
-  try {
-    await axios.post('/api/v1/auth/register/', {
-      username: form.username,
-      email: form.email,
-      password: form.password,
-      password2: form.password2
-    })
-    ElMessage.success('注册成功，请登录')
-    router.push('/login')
-  } catch (error) {
-    const data = error.response?.data
-    if (data) {
-      const messages = []
-      for (const key in data) {
-        messages.push(...[].concat(data[key]))
+  if (!formRef.value) return
+
+  await formRef.value.validate(async (valid) => {
+    if (!valid) return
+
+    loading.value = true
+    try {
+      const payload = {
+        username: form.username,
+        password: form.password,
+        password2: form.password2
       }
-      ElMessage.error(messages.join(', '))
-    } else {
-      ElMessage.error('注册失败')
+      // 只在有值时发送 email
+      if (form.email) {
+        payload.email = form.email
+      }
+
+      await axios.post('/api/v1/auth/register/', payload)
+      ElMessage.success('注册成功，请登录')
+      router.push('/login')
+    } catch (error) {
+      const data = error.response?.data
+      if (data) {
+        // 处理后端返回的字段错误
+        const messages = []
+        for (const key in data) {
+          const fieldName = {
+            username: '用户名',
+            password: '密码',
+            email: '邮箱'
+          }[key] || key
+          const fieldErrors = [].concat(data[key])
+          messages.push(`${fieldName}: ${fieldErrors.join(', ')}`)
+        }
+        ElMessage.error(messages.join('；'))
+      } else {
+        ElMessage.error('注册失败，请稍后重试')
+      }
+    } finally {
+      loading.value = false
     }
-  } finally {
-    loading.value = false
-  }
+  })
 }
 </script>
 
@@ -78,14 +166,115 @@ const handleRegister = async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  background-color: #f5f7fa;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
 }
+
+.register-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  z-index: 0;
+}
+
+.register-bg::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+  animation: float 15s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-5%, -5%); }
+}
+
 .register-card {
+  position: relative;
+  z-index: 1;
   width: 400px;
+  padding: 10px;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
 }
-.tip {
-  margin-top: 16px;
+
+.card-header {
   text-align: center;
+  margin-bottom: 30px;
+}
+
+.card-header h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #909399;
+}
+
+.register-btn {
+  width: 100%;
+  height: 44px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.register-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.register-btn:disabled {
+  opacity: 0.7;
+}
+
+.footer-tip {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 14px;
+  color: #606266;
+}
+
+.footer-tip a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.footer-tip a:hover {
+  text-decoration: underline;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #303133;
+}
+
+:deep(.el-input__wrapper) {
+  border-radius: 8px;
+  padding: 4px 12px;
+}
+
+:deep(.el-input__wrapper:focus-within) {
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
 }
 </style>

@@ -34,6 +34,31 @@
 
     <!-- 主内容区 -->
     <main class="main-content">
+      <!-- 顶部用户入口 -->
+      <div class="header-right">
+        <el-dropdown trigger="click" @command="handleCommand">
+          <div class="user-info">
+            <el-avatar :size="36" class="user-avatar">
+              {{ userInitial }}
+            </el-avatar>
+            <span class="username">{{ userName }}</span>
+            <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="profile">
+                <el-icon><User /></el-icon>
+                个人主页
+              </el-dropdown-item>
+              <el-dropdown-item divided command="logout">
+                <el-icon><SwitchButton /></el-icon>
+                退出登录
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+
       <router-view />
     </main>
 
@@ -52,14 +77,23 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotebookStore } from '@/stores/notebook'
-import { Delete } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { Delete, User, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getCurrentUser } from '@/api'
+import axios from 'axios'
 
 const store = useNotebookStore()
 const router = useRouter()
 
 const dialogVisible = ref(false)
 const newNotebookName = ref('')
+const userName = ref('用户')
+const userEmail = ref('')
+
+// 计算用户首字母
+const userInitial = computed(() => {
+  return userName.value?.charAt(0)?.toUpperCase() || 'U'
+})
 
 // 只渲染有效笔记本
 const validNotebooks = computed(() =>
@@ -68,8 +102,19 @@ const validNotebooks = computed(() =>
 
 onMounted(async () => {
   await store.fetchNotebooks()
-  console.log('笔记本列表已加载：', store.notebooks) 
+  await fetchUserInfo()
 })
+
+// 获取用户信息
+const fetchUserInfo = async () => {
+  try {
+    const res = await getCurrentUser()
+    userName.value = res.data.username
+    userEmail.value = res.data.email || ''
+  } catch (e) {
+    console.error('获取用户信息失败', e)
+  }
+}
 
 const showAddDialog = () => {
   newNotebookName.value = ''
@@ -84,7 +129,6 @@ const handleAdd = async () => {
   try {
     await store.addNotebook(newNotebookName.value.trim())
     dialogVisible.value = false
-    // 创建后强制刷新列表，避免脏数据
     await store.fetchNotebooks()
     ElMessage.success('笔记本已创建')
   } catch (e) {
@@ -106,28 +150,207 @@ const handleDelete = async (id) => {
     ElMessage.error('删除失败')
   }
 }
+
+// 用户菜单操作
+const handleCommand = async (cmd) => {
+  if (cmd === 'profile') {
+    router.push('/profile')
+  } else if (cmd === 'logout') {
+    try {
+      await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
+        confirmButtonText: '确定', cancelButtonText: '取消', type: 'info'
+      })
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
+      delete axios.defaults.headers.common['Authorization']
+      router.push('/login')
+    } catch (e) {
+      // 用户取消退出
+    }
+  }
+}
 </script>
 
 <style scoped>
 .home-container {
   display: flex;
   height: 100vh;
+  background: #ffffff;
 }
+
 .sidebar {
   width: 280px;
-  background: #f5f7fa;
+  height: 100vh;
   padding: 20px 16px;
-  border-right: 1px solid #e4e7ed;
   overflow-y: auto;
+  background: #ffffff;
+  border-right: 1px solid #e8e8e8;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.04);
 }
+
+.sidebar h3 {
+  color: #303133;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 20px;
+}
+
+:deep(.el-dropdown-menu) {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+:deep(.el-dropdown-menu__item) {
+  color: #303133;
+}
+
+:deep(.el-dropdown-menu__item:hover) {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.header-right {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.header-right .user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #f5f7fa;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.header-right .user-info:hover {
+  background: #e4e7ed;
+}
+
+.header-right .user-avatar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.header-right .username {
+  font-size: 14px;
+  color: #303133;
+  font-weight: 500;
+}
+
+.header-right .dropdown-arrow {
+  color: #909399;
+  font-size: 12px;
+}
+
+.sidebar :deep(.el-button) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: #fff;
+  font-weight: 500;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.sidebar :deep(.el-button:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.sidebar :deep(.el-menu) {
+  background: transparent;
+  border: none;
+}
+
+.sidebar :deep(.el-menu-item) {
+  color: #606266;
+  border-radius: 16px;
+  margin-bottom: 10px;
+  transition: all 0.3s ease;
+  padding: 14px 16px;
+  background: #f8f9fc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar :deep(.el-menu-item:hover),
+.sidebar :deep(.el-menu-item.is-active) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  transform: translateX(4px);
+}
+
+.sidebar :deep(.el-menu-item.is-active .el-tag) {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+.sidebar :deep(.el-tag) {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.2);
+  color: #667eea;
+  font-weight: 500;
+}
+
+.sidebar :deep(.el-button.is-circle) {
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  color: #909399;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  transition: all 0.3s ease;
+}
+
+.sidebar :deep(.el-menu-item:hover .el-button.is-circle),
+.sidebar :deep(.el-menu-item.is-active .el-button.is-circle) {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+.sidebar :deep(.el-button.is-circle:hover) {
+  background: #fef2f2;
+  border-color: #feb2b2;
+  color: #f56565;
+  transform: scale(1.1);
+}
+
+.sidebar :deep(.el-menu-item:hover .el-button.is-circle:hover),
+.sidebar :deep(.el-menu-item.is-active .el-button.is-circle:hover) {
+  background: rgba(245, 101, 101, 0.8);
+  border-color: rgba(245, 101, 101, 0.8);
+  color: #fff;
+}
+
+.sidebar p {
+  color: #909399;
+}
+
 .main-content {
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+  position: relative;
 }
-.el-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+
+:deep(.el-dialog) {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+:deep(.el-input__wrapper) {
+  border-radius: 8px;
+  background: #fff;
 }
 </style>

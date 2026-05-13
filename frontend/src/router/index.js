@@ -36,6 +36,36 @@ const routes = [
     name: 'NoteEdit',
     component: () => import('@/views/NoteEdit.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('@/views/Profile.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/quiz/:id',
+    name: 'Quiz',
+    component: () => import('@/views/Quiz.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/wrong-questions',
+    name: 'WrongQuestions',
+    component: () => import('@/views/WrongQuestions.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/quiz-history',
+    name: 'QuizHistory',
+    component: () => import('@/views/QuizHistory.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/quiz/:id/review',
+    name: 'QuizReview',
+    component: () => import('@/views/QuizReview.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
