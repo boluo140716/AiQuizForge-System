@@ -39,20 +39,38 @@ def generate_quiz(self, quiz_id:int):
         'count': quiz.question_count
     }
     try:
-        with httpx.Client(timeout=60) as client:
-            response = client.post(ai_service_url, headers=headers, json=payload)
+    # 增加超时时间到 120 秒，并分开设置连接超时和读取超时
+        with httpx.Client(timeout=httpx.Timeout(10.0, read=120.0)) as client:
+            response = client.post(ai_service_url, json=payload, headers=headers)
             response.raise_for_status()
-            data=response.json()
-    except httpx.HTTPError as e:
-        logger.error(f"ai服务返回错误: {e.response.status_code}:{e.response.text}")
-        quiz.status='failed'
-        quiz.error_message=f"Ai服务调用失败: {e.response.status_code}"
+            data = response.json()
+    except httpx.ConnectError as e:
+        logger.error(f"无法连接到AI服务，请确认FastAPI已启动: {e}")
+        quiz.status = 'failed'
+        quiz.error_message = 'AI服务连接失败，请检查服务是否运行'
+        quiz.save()
+        return
+    except httpx.ReadTimeout as e:
+        logger.error(f"AI服务响应超时: {e}")
+        quiz.status = 'failed'
+        quiz.error_message = 'AI服务响应超时，请稍后重试'
+        quiz.save()
+        return
+    except httpx.HTTPStatusError as e:
+        logger.error(f"AI服务返回错误 {e.response.status_code}: {e.response.text}")
+        quiz.status = 'failed'
+        quiz.error_message = f'AI 服务调用失败：{e.response.status_code}'
         quiz.save()
         return
     except Exception as e:
-        logger.error(f"ai服务调用异常: {str(e)}")
-        self.retry(exc=e,countdown=60)
-        return
+        logger.error(f"调用AI服务未知异常: {str(e)}")
+        try:
+            self.retry(exc=e, countdown=60)
+        except self.MaxRetriesExceededError:
+            quiz.status = 'failed'
+            quiz.error_message = f'生成失败：{str(e)}'
+            quiz.save()
+            return
     
     questions_data=data.get('questions',[])
     if not questions_data:

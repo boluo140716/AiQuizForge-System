@@ -99,13 +99,13 @@
 
             <div class="quiz-actions">
               <el-button
-                v-if="item.status === 'completed' && item.attempt_count > 0"
+                v-if="item.status === 'completed'"
                 type="primary"
                 size="small"
                 @click="$router.push(`/quiz/${item.id}`)"
               >
                 <el-icon><Pointer /></el-icon>
-                再次答题
+                {{ item.attempt_count > 0 ? '再次答题' : '开始答题' }}
               </el-button>
               <el-button
                 v-if="item.status === 'completed' && item.attempt_count > 0"
@@ -116,12 +116,15 @@
                 查看回顾
               </el-button>
               <el-button
-                v-if="item.status === 'completed' && item.attempt_count > 0"
+                v-if="item.status === 'completed'"
                 size="small"
-                @click="viewAttempts(item)"
+                type="danger"
+                :loading="deletingQuizId === item.id"
+                :disabled="deletingQuizId !== null && deletingQuizId !== item.id"
+                @click="handleDeleteQuiz(item, 'completed')"
               >
-                <el-icon><List /></el-icon>
-                答题记录
+                <el-icon><Delete /></el-icon>
+                删除
               </el-button>
               <el-button
                 v-if="item.status === 'processing'"
@@ -131,9 +134,31 @@
               >
                 生成中...
               </el-button>
-              <el-tag v-if="item.status === 'failed'" type="danger" size="small">
-                {{ item.error_message || '生成失败' }}
-              </el-tag>
+              <el-button
+                v-if="item.status === 'processing'"
+                size="small"
+                type="danger"
+                :loading="cancellingQuizId === item.id"
+                :disabled="cancellingQuizId !== null && cancellingQuizId !== item.id"
+                @click="handleCancelQuiz(item)"
+              >
+                取消并删除
+              </el-button>
+              <div v-if="item.status === 'failed'" class="failed-row">
+                <el-tag type="danger" size="small">
+                  {{ item.error_message || '生成失败' }}
+                </el-tag>
+                <el-button
+                  size="small"
+                  type="danger"
+                  :loading="deletingQuizId === item.id"
+                  :disabled="deletingQuizId !== null && deletingQuizId !== item.id"
+                  @click="handleDeleteQuiz(item, 'failed')"
+                >
+                  <el-icon><Delete /></el-icon>
+                  删除
+                </el-button>
+              </div>
             </div>
           </div>
         </el-card>
@@ -144,17 +169,17 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, Document, CircleCheck, TrendCharts, Trophy,
-  Pointer, View, List
+  Pointer, View, Delete
 } from '@element-plus/icons-vue'
-import { getQuizHistory } from '@/api'
+import { getQuizHistory, cancelQuizGeneration, deleteQuiz } from '@/api'
 
-const router = useRouter()
 const loading = ref(false)
 const quizList = ref([])
+const cancellingQuizId = ref(null)
+const deletingQuizId = ref(null)
 
 const stats = computed(() => {
   const list = quizList.value
@@ -197,8 +222,58 @@ const bestRate = (item) => {
   return 0
 }
 
-const viewAttempts = (item) => {
-  router.push(`/quiz/${item.id}/review`)
+// 删除测验
+const handleDeleteQuiz = async (item, status) => {
+  const msg = status === 'completed'
+    ? '确定要删除该测验吗？删除后答题记录和错题本数据也会被清空，无法恢复'
+    : '确定要删除该已取消的测验吗？删除后数据无法恢复'
+
+  try {
+    await ElMessageBox.confirm(msg, '删除确认', {
+      confirmButtonText: '确定删除', cancelButtonText: '返回', type: 'warning'
+    })
+  } catch {
+    return
+  }
+
+  deletingQuizId.value = item.id
+  try {
+    await deleteQuiz(item.id)
+    // 直接从列表中移除该条目
+    const idx = quizList.value.findIndex(q => q.id === item.id)
+    if (idx !== -1) quizList.value.splice(idx, 1)
+    ElMessage.success('删除成功')
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '删除失败')
+  } finally {
+    deletingQuizId.value = null
+  }
+}
+
+// 取消并删除生成中的测验
+const handleCancelQuiz = async (item) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要取消并删除该测验吗？删除后数据无法恢复',
+      '删除确认',
+      { confirmButtonText: '确定删除', cancelButtonText: '返回', type: 'warning' }
+    )
+  } catch {
+    return
+  }
+
+  cancellingQuizId.value = item.id
+  try {
+    await cancelQuizGeneration(item.id)
+    // 直接从列表中移除该条目
+    const idx = quizList.value.findIndex(q => q.id === item.id)
+    if (idx !== -1) quizList.value.splice(idx, 1)
+    ElMessage.success('删除成功')
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '删除失败')
+  } finally {
+    cancellingQuizId.value = null
+  }
 }
 
 const fetchHistory = async () => {
@@ -373,6 +448,12 @@ onMounted(fetchHistory)
   flex-direction: column;
   gap: 8px;
   min-width: 100px;
+}
+
+.failed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 :deep(.el-button--primary) {

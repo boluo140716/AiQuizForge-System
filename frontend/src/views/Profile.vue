@@ -26,7 +26,7 @@
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stats-row">
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card clickable" @click="$router.push('/notes')">
           <div class="stat-icon notes-icon">
             <el-icon><Document /></el-icon>
           </div>

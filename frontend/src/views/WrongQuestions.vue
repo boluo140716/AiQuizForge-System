@@ -218,7 +218,6 @@ const fetchWrongQuestions = async () => {
     const res = await getWrongQuestions(params)
     const data = res.data
     wrongList.value = data.results || data
-    total.value = wrongList.value.length
 
     // 提取测验选项
     const quizMap = new Map()

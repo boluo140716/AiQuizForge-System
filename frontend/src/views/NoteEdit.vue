@@ -184,19 +184,30 @@ const handleGenerateQuiz = async () => {
     ElMessage.success('测验生成中，请稍候...')
 
     // 轮询检查生成状态
+    let pollCount = 0
+    const MAX_POLL = 60
     const pollStatus = async () => {
-      const statusRes = await getQuizStatus(currentQuizId.value)
-      const quiz = statusRes.data
+      pollCount++
+      try {
+        const statusRes = await getQuizStatus(currentQuizId.value)
+        const quiz = statusRes.data
 
-      if (quiz.status === 'completed') {
-        ElMessage.success('测验生成完成！')
-        router.push(`/quiz/${currentQuizId.value}`)
-      } else if (quiz.status === 'failed') {
-        ElMessage.error('测验生成失败：' + (quiz.error_message || '未知错误'))
+        if (quiz.status === 'completed') {
+          generating.value = false
+          ElMessage.success('测验生成完成！')
+          router.push(`/quiz/${currentQuizId.value}`)
+        } else if (quiz.status === 'failed') {
+          generating.value = false
+          ElMessage.error('测验生成失败：' + (quiz.error_message || '未知错误'))
+        } else if (pollCount >= MAX_POLL) {
+          generating.value = false
+          ElMessage.error('测验生成超时，请检查后重试')
+        } else {
+          setTimeout(pollStatus, 2000)
+        }
+      } catch (e) {
         generating.value = false
-      } else {
-        // 继续轮询
-        setTimeout(pollStatus, 2000)
+        ElMessage.error('检查生成状态失败')
       }
     }
 
@@ -205,7 +216,6 @@ const handleGenerateQuiz = async () => {
     if (err !== 'cancel') {
       ElMessage.error(err.response?.data?.detail || '生成失败')
     }
-  } finally {
     generating.value = false
   }
 }

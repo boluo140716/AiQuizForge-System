@@ -99,7 +99,9 @@ class QuizViewSet(viewsets.GenericViewSet):
             status='processing'
         )
         # 提交异步任务
-        generate_quiz.delay(quiz.id)
+        task = generate_quiz.delay(quiz.id)
+        quiz.celery_task_id = task.id
+        quiz.save(update_fields=['celery_task_id'])
 
         return Response({
             'quiz_id': quiz.id,
@@ -117,7 +119,53 @@ class QuizViewSet(viewsets.GenericViewSet):
 
         serializer = QuizStatusSerializer(quiz)
         return Response(serializer.data)
-    
+
+    @action(detail=True, methods=['post'], url_path='cancel-delete')
+    def cancel_delete(self, request, pk=None):
+        """取消并删除生成中的测验"""
+        try:
+            quiz = Quiz.objects.get(id=pk, user=request.user)
+        except Quiz.DoesNotExist:
+            return Response({'detail': '测验不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+        if quiz.status != 'processing':
+            return Response({'detail': '只能取消生成中的测验'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 撤销 Celery 异步任务
+        if quiz.celery_task_id:
+            try:
+                from config.celery import app
+                app.control.revoke(quiz.celery_task_id, terminate=False)
+            except Exception:
+                pass
+
+        # 级联删除测验及其所有关联数据（题目、答题记录、错题）
+        quiz.delete()
+
+        return Response({'status': 'deleted', 'message': '已取消并删除测验'})
+
+    @action(detail=True, methods=['post'], url_path='delete')
+    def delete_quiz(self, request, pk=None):
+        """删除测验（支持已完成和生成失败的测验）"""
+        try:
+            quiz = Quiz.objects.get(id=pk, user=request.user)
+        except Quiz.DoesNotExist:
+            return Response({'detail': '测验不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+        # 如果是生成中的测验，尝试撤销 Celery 任务
+        if quiz.celery_task_id:
+            try:
+                from config.celery import app
+                app.control.revoke(quiz.celery_task_id, terminate=False)
+            except Exception:
+                pass
+
+        # 级联删除测验及其所有关联数据（题目、答题记录、错题）
+        quiz.delete()
+
+        return Response({'status': 'deleted', 'message': '已删除测验'})
+
+
     @action(detail=True, methods=['get'], url_path='questions')
     def questions(self, request, pk=None):
         """获取测验的所有题目（答题用，不返回答案）"""
@@ -281,7 +329,7 @@ class WrongQuestionViewSet(viewsets.GenericViewSet):
         #可选筛选，按笔记
         notebook_id=request.query_params.get('notebook_id')
         if notebook_id:
-            queryset=queryset.filter(quiz_note__notebook_id=notebook_id)
+            queryset=queryset.filter(quiz__note__notebook_id=notebook_id)
         #按最后错误时间排序
         queryset=queryset.order_by('-last_wrong_at')
 
@@ -308,14 +356,14 @@ class WrongQuestionViewSet(viewsets.GenericViewSet):
 
         #可选筛选，按笔记
         if notebook_id:
-            queryset=queryset.filter(quiz_note__notebook_id=notebook_id)
+            queryset=queryset.filter(quiz__note__notebook_id=notebook_id)
         #按错误次数降序排序
         queryset=queryset.order_by('-wrong_count')
         #获取去重后的题目ID
         question_ids=queryset.values_list('question_id', flat=True).distinct()[:limit]
         if not question_ids:
             return Response({'detail': '错题本为空'}, status=status.HTTP_404_NOT_FOUND)
-        #创建一个临时测验记录
+        # 创建一个临时测验记录
         first_wrong = WrongQuestion.objects.filter(
             user=request.user, question_id__in=question_ids
         ).first()
@@ -323,11 +371,23 @@ class WrongQuestionViewSet(viewsets.GenericViewSet):
             note=first_wrong.quiz.note,
             user=request.user,
             question_count=len(question_ids),
-            status='processing'
+            status='completed'
         )
-        # 获取这些题目
-        questions = Question.objects.filter(id__in=question_ids)
-        serializer = QuestionWithAnswerSerializer(questions, many=True)
+
+        # 复制题目到临时测验，保留原题不变
+        original_questions = Question.objects.filter(id__in=question_ids)
+        new_questions = []
+        for q in original_questions:
+            new_q = Question.objects.create(
+                stem=q.stem,
+                options=q.options,
+                answer=q.answer,
+                explanation=q.explanation,
+                quiz=temp_quiz
+            )
+            new_questions.append(new_q)
+
+        serializer = QuestionWithAnswerSerializer(new_questions, many=True)
         return Response({
             'practice_quiz_id': temp_quiz.id,
             'questions': serializer.data

@@ -29,8 +29,8 @@
           <div
             v-for="(option, idx) in currentQuestion.options"
             :key="idx"
-            :class="['option-item', { selected: selectedAnswers[currentQuestion.id] === option }]"
-            @click="selectAnswer(currentQuestion.id, option)"
+            :class="['option-item', { selected: selectedAnswers[currentQuestion.id] === optionLetters[idx] }]"
+            @click="selectAnswer(currentQuestion.id, optionLetters[idx])"
           >
             <div class="option-badge">{{ optionLetters[idx] }}</div>
             <span class="option-text">{{ option }}</span>
@@ -164,7 +164,8 @@ const currentQuestion = computed(() => questions.value[currentIndex.value] || {}
 const answeredQuestions = computed(() => {
   const set = new Set()
   Object.keys(selectedAnswers.value).forEach(qid => {
-    const idx = questions.value.findIndex(q => q.id === qid)
+    if (selectedAnswers.value[qid] == null) return
+    const idx = questions.value.findIndex(q => q.id == qid)
     if (idx !== -1) set.add(idx)
   })
   return set
@@ -226,10 +227,12 @@ const submitQuiz = async () => {
 
   submitting.value = true
   try {
-    const answers = Object.entries(selectedAnswers.value).map(([questionId, selected]) => ({
-      question_id: parseInt(questionId),
-      selected
-    }))
+    const answers = Object.entries(selectedAnswers.value)
+      .filter(([_, selected]) => selected != null)
+      .map(([questionId, selected]) => ({
+        question_id: parseInt(questionId),
+        selected
+      }))
 
     const res = await submitQuizAnswers(quizId.value, answers)
     result.value = res.data

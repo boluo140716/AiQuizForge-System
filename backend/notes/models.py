@@ -50,6 +50,7 @@ class Quiz(models.Model):
     status=models.CharField(max_length=255,choices=STATUS_CHOICES,default='processing',verbose_name="状态")
     question_count=models.IntegerField(default=5,verbose_name="问题数量")
     error_message=models.TextField(blank=True,null=True,verbose_name="错误信息")
+    celery_task_id=models.CharField(max_length=255,null=True,blank=True,verbose_name="Celery任务ID")
     created_at=models.DateTimeField(auto_now_add=True,verbose_name="创建时间")
 
     class Meta:

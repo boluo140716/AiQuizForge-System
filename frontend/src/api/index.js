@@ -24,6 +24,12 @@ export const generateQuiz = (noteId, questionCount = 5) =>
 export const getQuizStatus = (quizId) =>
   axios.get(`/api/v1/quizzes/${quizId}/status/`)
 
+export const cancelQuizGeneration = (quizId) =>
+  axios.post(`/api/v1/quizzes/${quizId}/cancel-delete/`)
+
+export const deleteQuiz = (quizId) =>
+  axios.post(`/api/v1/quizzes/${quizId}/delete/`)
+
 export const getQuizQuestions = (quizId) =>
   axios.get(`/api/v1/quizzes/${quizId}/questions/`)
 
