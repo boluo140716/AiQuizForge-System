@@ -261,7 +261,7 @@ onMounted(fetchQuestions)
 <style scoped>
 .quiz-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
+  background: #f5f5f7;
   padding: 24px;
 }
 
@@ -276,7 +276,7 @@ onMounted(fetchQuestions)
   margin: 0;
   font-size: 22px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .quiz-info {
@@ -298,7 +298,7 @@ onMounted(fetchQuestions)
 
 .question-card {
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .question-card :deep(.el-card__body) {
@@ -321,7 +321,7 @@ onMounted(fetchQuestions)
   margin: 0 0 24px;
   font-size: 18px;
   font-weight: 500;
-  color: #303133;
+  color: #1d1d1f;
   line-height: 1.6;
 }
 
@@ -336,7 +336,7 @@ onMounted(fetchQuestions)
   align-items: center;
   gap: 16px;
   padding: 16px 20px;
-  background: #f5f7fa;
+  background: #f5f5f7;
   border: 2px solid transparent;
   border-radius: 12px;
   cursor: pointer;
@@ -344,13 +344,13 @@ onMounted(fetchQuestions)
 }
 
 .option-item:hover {
-  background: #ecf0f9;
-  border-color: #667eea;
+  background: #e8e8ed;
+  border-color: #1d1d1f;
 }
 
 .option-item.selected {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  border-color: #667eea;
+  background: #e8e8ed;
+  border-color: #1d1d1f;
 }
 
 .option-badge {
@@ -362,19 +362,19 @@ onMounted(fetchQuestions)
   background: #fff;
   border-radius: 8px;
   font-weight: 600;
-  color: #667eea;
+  color: #1d1d1f;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .option-item.selected .option-badge {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1d1d1f;
   color: #fff;
 }
 
 .option-text {
   flex: 1;
   font-size: 15px;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .navigation {
@@ -386,7 +386,7 @@ onMounted(fetchQuestions)
   padding: 20px;
   background: #fff;
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .page-dots {
@@ -398,18 +398,18 @@ onMounted(fetchQuestions)
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #e4e7ed;
+  background: #d2d2d7;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .dot.active {
-  background: #667eea;
+  background: #1d1d1f;
   transform: scale(1.2);
 }
 
 .dot.answered {
-  background: #764ba2;
+  background: #86868b;
 }
 
 .submitting-wrap {
@@ -418,7 +418,7 @@ onMounted(fetchQuestions)
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  color: #667eea;
+  color: #86868b;
 }
 
 .submitting-wrap .el-icon {
@@ -433,7 +433,7 @@ onMounted(fetchQuestions)
 
 .result-card {
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .result-card :deep(.el-card__body) {
@@ -454,22 +454,22 @@ onMounted(fetchQuestions)
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #f5f7fa;
+  background: #f5f5f7;
   flex-shrink: 0;
 }
 
 .score-circle.excellent {
-  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+  background: #67c23a;
   color: #fff;
 }
 
 .score-circle.good {
-  background: linear-gradient(135deg, #e6a23c 0%, #fbbc24 100%);
+  background: #e6a23c;
   color: #fff;
 }
 
 .score-circle.needs-improvement {
-  background: linear-gradient(135deg, #f56c6c 0%, #fa5555 100%);
+  background: #f56c6c;
   color: #fff;
 }
 
@@ -487,13 +487,13 @@ onMounted(fetchQuestions)
   margin: 0 0 8px;
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .correct-rate {
   margin: 0;
   font-size: 16px;
-  color: #667eea;
+  color: #1d1d1f;
   font-weight: 500;
 }
 
@@ -505,15 +505,15 @@ onMounted(fetchQuestions)
   margin: 0 0 16px;
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .review-item {
   padding: 20px;
-  background: #f5f7fa;
+  background: #f5f5f7;
   border-radius: 12px;
   margin-bottom: 16px;
-  border-left: 4px solid #e4e7ed;
+  border-left: 4px solid #e0e0e0;
 }
 
 .review-item.correct {
@@ -541,7 +541,7 @@ onMounted(fetchQuestions)
 .review-stem {
   margin: 0 0 12px;
   font-size: 15px;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .review-options {
@@ -555,7 +555,7 @@ onMounted(fetchQuestions)
   background: #fff;
   border-radius: 8px;
   font-size: 14px;
-  color: #606266;
+  color: #86868b;
 }
 
 .review-option.correct {
@@ -575,14 +575,14 @@ onMounted(fetchQuestions)
   background: #fff;
   border-radius: 8px;
   font-size: 14px;
-  color: #606266;
+  color: #86868b;
   display: flex;
   align-items: flex-start;
   gap: 8px;
 }
 
 .review-explanation .el-icon {
-  color: #409eff;
+  color: #86868b;
   margin-top: 2px;
 }
 
@@ -599,12 +599,110 @@ onMounted(fetchQuestions)
 }
 
 :deep(.el-button--primary) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1d1d1f;
   border: none;
 }
 
 :deep(.el-button--success) {
-  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+  background: #67c23a;
   border: none;
+}
+
+/* ============ Mobile: <= 768px ============ */
+@media (max-width: 768px) {
+  .quiz-page {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .page-header h2 {
+    font-size: 18px;
+  }
+
+  .quiz-info {
+    margin-left: 0;
+    width: 100%;
+    order: 3;
+  }
+
+  .question-card :deep(.el-card__body) {
+    padding: 20px 16px;
+  }
+
+  .question-stem {
+    font-size: 16px;
+    margin-bottom: 16px;
+  }
+
+  .option-item {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .option-badge {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  .option-text {
+    font-size: 14px;
+  }
+
+  .dot {
+    width: 16px;
+    height: 16px;
+    padding: 14px;
+    background-clip: content-box;
+  }
+
+  .page-dots {
+    gap: 2px;
+  }
+
+  .navigation {
+    padding: 16px;
+    gap: 10px;
+  }
+
+  .result-card :deep(.el-card__body) {
+    padding: 20px 16px;
+  }
+
+  .result-header {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    text-align: center;
+  }
+
+  .score-circle {
+    width: 100px;
+    height: 100px;
+  }
+
+  .score-value {
+    font-size: 30px;
+  }
+
+  .result-info h3 {
+    font-size: 20px;
+  }
+
+  .result-actions {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .result-actions .el-button {
+    flex: 1;
+    min-width: 120px;
+    padding: 10px 20px;
+  }
 }
 </style>

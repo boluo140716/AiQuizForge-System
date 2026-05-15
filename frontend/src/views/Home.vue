@@ -50,6 +50,14 @@
                 <el-icon><User /></el-icon>
                 个人主页
               </el-dropdown-item>
+              <el-dropdown-item command="quizHistory">
+                <el-icon><List /></el-icon>
+                答题历史
+              </el-dropdown-item>
+              <el-dropdown-item command="wrong">
+                <el-icon><Warning /></el-icon>
+                错题本
+              </el-dropdown-item>
               <el-dropdown-item divided command="logout">
                 <el-icon><SwitchButton /></el-icon>
                 退出登录
@@ -77,7 +85,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotebookStore } from '@/stores/notebook'
-import { Delete, User, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
+import { Delete, User, ArrowDown, SwitchButton, List, Warning } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getCurrentUser } from '@/api'
 import axios from 'axios'
@@ -155,6 +163,10 @@ const handleDelete = async (id) => {
 const handleCommand = async (cmd) => {
   if (cmd === 'profile') {
     router.push('/profile')
+  } else if (cmd === 'quizHistory') {
+    router.push('/quiz-history')
+  } else if (cmd === 'wrong') {
+    router.push('/wrong-questions')
   } else if (cmd === 'logout') {
     try {
       await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
@@ -184,12 +196,12 @@ const handleCommand = async (cmd) => {
   padding: 20px 16px;
   overflow-y: auto;
   background: #ffffff;
-  border-right: 1px solid #e8e8e8;
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.04);
+  border-right: 1px solid #e0e0e0;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
 }
 
 .sidebar h3 {
-  color: #303133;
+  color: #1d1d1f;
   font-size: 20px;
   font-weight: 600;
   margin: 0 0 20px;
@@ -202,12 +214,12 @@ const handleCommand = async (cmd) => {
 }
 
 :deep(.el-dropdown-menu__item) {
-  color: #303133;
+  color: #1d1d1f;
 }
 
 :deep(.el-dropdown-menu__item:hover) {
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: rgba(0, 0, 0, 0.06);
+  color: #1d1d1f;
 }
 
 .header-right {
@@ -221,47 +233,48 @@ const handleCommand = async (cmd) => {
   align-items: center;
   gap: 10px;
   padding: 8px 16px;
-  background: #f5f7fa;
-  border-radius: 20px;
+  background: #1d1d1f;
+  border-radius: 24px;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .header-right .user-info:hover {
-  background: #e4e7ed;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .header-right .user-avatar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: rgba(255, 255, 255, 0.3);
   color: #fff;
   font-weight: 600;
-  font-size: 14px;
 }
 
 .header-right .username {
   font-size: 14px;
-  color: #303133;
+  color: #fff;
   font-weight: 500;
 }
 
 .header-right .dropdown-arrow {
-  color: #909399;
+  color: rgba(255, 255, 255, 0.9);
   font-size: 12px;
 }
 
 .sidebar :deep(.el-button) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1d1d1f;
   border: none;
   color: #fff;
   font-weight: 500;
   border-radius: 16px;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .sidebar :deep(.el-button:hover) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .sidebar :deep(.el-menu) {
@@ -270,12 +283,12 @@ const handleCommand = async (cmd) => {
 }
 
 .sidebar :deep(.el-menu-item) {
-  color: #606266;
+  color: #86868b;
   border-radius: 16px;
   margin-bottom: 10px;
   transition: all 0.3s ease;
   padding: 14px 16px;
-  background: #f8f9fc;
+  background: #f5f5f7;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -283,7 +296,7 @@ const handleCommand = async (cmd) => {
 
 .sidebar :deep(.el-menu-item:hover),
 .sidebar :deep(.el-menu-item.is-active) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1d1d1f;
   color: #fff;
   transform: translateX(4px);
 }
@@ -295,16 +308,16 @@ const handleCommand = async (cmd) => {
 }
 
 .sidebar :deep(.el-tag) {
-  background: rgba(102, 126, 234, 0.1);
-  border-color: rgba(102, 126, 234, 0.2);
-  color: #667eea;
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #86868b;
   font-weight: 500;
 }
 
 .sidebar :deep(.el-button.is-circle) {
   background: #fff;
-  border: 1px solid #e4e7ed;
-  color: #909399;
+  border: 1px solid #e0e0e0;
+  color: #86868b;
   width: 34px;
   height: 34px;
   padding: 0;
@@ -333,7 +346,7 @@ const handleCommand = async (cmd) => {
 }
 
 .sidebar p {
-  color: #909399;
+  color: #86868b;
 }
 
 .main-content {
@@ -346,11 +359,50 @@ const handleCommand = async (cmd) => {
 :deep(.el-dialog) {
   background: #fff;
   border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
 }
 
 :deep(.el-input__wrapper) {
   border-radius: 8px;
   background: #fff;
+}
+
+/* ============ Mobile: <= 768px ============ */
+@media (max-width: 768px) {
+  .home-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 40vh;
+    overflow-y: auto;
+    padding: 16px;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  .sidebar h3 {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+
+  .main-content {
+    overflow-y: visible;
+    padding: 16px;
+  }
+
+  .header-right {
+    margin-bottom: 16px;
+  }
+
+  :deep(.el-dialog) {
+    width: 92vw !important;
+    max-width: 500px !important;
+  }
 }
 </style>

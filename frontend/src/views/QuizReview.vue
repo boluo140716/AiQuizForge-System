@@ -190,7 +190,7 @@ onMounted(fetchReview)
 .review-page {
   min-height: 100vh;
   padding: 24px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
+  background: #f5f5f7;
 }
 
 .page-header {
@@ -204,7 +204,7 @@ onMounted(fetchReview)
   margin: 0;
   font-size: 22px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
   flex: 1;
 }
 
@@ -228,13 +228,13 @@ onMounted(fetchReview)
   margin: 0 0 8px;
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .overview-meta {
   margin: 0;
   font-size: 14px;
-  color: #909399;
+  color: #86868b;
 }
 
 .overview-score {
@@ -252,21 +252,21 @@ onMounted(fetchReview)
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #f5f7fa;
+  background: #f5f5f7;
 }
 
 .score-circle.excellent {
-  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+  background: #67c23a;
   color: #fff;
 }
 
 .score-circle.good {
-  background: linear-gradient(135deg, #e6a23c 0%, #fbbc24 100%);
+  background: #e6a23c;
   color: #fff;
 }
 
 .score-circle.needs-improvement {
-  background: linear-gradient(135deg, #f56c6c 0%, #fa5555 100%);
+  background: #f56c6c;
   color: #fff;
 }
 
@@ -282,7 +282,7 @@ onMounted(fetchReview)
 
 .score-detail {
   font-size: 14px;
-  color: #606266;
+  color: #86868b;
 }
 
 .section-header {
@@ -296,7 +296,7 @@ onMounted(fetchReview)
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .question-card {
@@ -307,7 +307,7 @@ onMounted(fetchReview)
 
 .question-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .q-header {
@@ -319,7 +319,7 @@ onMounted(fetchReview)
 
 .q-num {
   font-size: 13px;
-  color: #909399;
+  color: #86868b;
   font-weight: 500;
 }
 
@@ -327,7 +327,7 @@ onMounted(fetchReview)
   margin: 0 0 20px;
   font-size: 16px;
   font-weight: 500;
-  color: #303133;
+  color: #1d1d1f;
   line-height: 1.6;
 }
 
@@ -343,21 +343,21 @@ onMounted(fetchReview)
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  background: #f5f7fa;
+  background: #f5f5f7;
   border-radius: 10px;
   font-size: 14px;
-  color: #606266;
+  color: #86868b;
   transition: all 0.2s ease;
 }
 
 .q-option.correct {
-  background: rgba(103, 194, 58, 0.12);
+  background: rgba(103, 194, 58, 0.08);
   color: #67c23a;
   font-weight: 500;
 }
 
 .q-option.wrong {
-  background: rgba(245, 108, 108, 0.12);
+  background: rgba(245, 108, 108, 0.08);
   color: #f56c6c;
 }
 
@@ -402,10 +402,10 @@ onMounted(fetchReview)
   align-items: flex-start;
   gap: 8px;
   padding: 14px 16px;
-  background: rgba(64, 158, 255, 0.06);
+  background: rgba(0, 0, 0, 0.04);
   border-radius: 10px;
   font-size: 14px;
-  color: #409eff;
+  color: #86868b;
   line-height: 1.6;
 }
 
@@ -417,7 +417,7 @@ onMounted(fetchReview)
 /* 答题记录弹窗 */
 .attempt-item {
   padding: 16px;
-  background: #f5f7fa;
+  background: #f5f5f7;
   border-radius: 12px;
   margin-bottom: 12px;
 }
@@ -432,12 +432,12 @@ onMounted(fetchReview)
 .attempt-score {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .attempt-rate {
   font-size: 14px;
-  color: #667eea;
+  color: #86868b;
 }
 
 .attempt-date {
@@ -471,7 +471,7 @@ onMounted(fetchReview)
 }
 
 .mini-stem {
-  color: #606266;
+  color: #86868b;
 }
 
 .text-success {
@@ -484,5 +484,73 @@ onMounted(fetchReview)
 
 :deep(.el-dialog) {
   border-radius: 16px;
+}
+
+/* ============ Mobile: <= 768px ============ */
+@media (max-width: 768px) {
+  .review-page {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .page-header h2 {
+    font-size: 18px;
+  }
+
+  .review-content {
+    max-width: 100%;
+  }
+
+  :deep(.el-dialog) {
+    width: 94vw !important;
+    max-width: 640px !important;
+  }
+
+  .overview-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .overview-header h3 {
+    font-size: 18px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .section-header h3 {
+    font-size: 16px;
+  }
+
+  .question-card {
+    margin-bottom: 12px;
+  }
+
+  .q-stem {
+    font-size: 15px;
+  }
+
+  .attempt-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .attempt-date {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .attempt-score {
+    font-size: 14px;
+  }
 }
 </style>

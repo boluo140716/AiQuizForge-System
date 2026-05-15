@@ -126,24 +126,8 @@ const handleLogin = async () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f5f5f7;
   z-index: 0;
-}
-
-.login-bg::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
-  animation: float 15s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-5%, -5%); }
 }
 
 .login-card {
@@ -152,9 +136,8 @@ const handleLogin = async () => {
   width: 400px;
   padding: 10px;
   border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
 }
 
 .card-header {
@@ -166,13 +149,13 @@ const handleLogin = async () => {
   margin: 0 0 8px;
   font-size: 28px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .subtitle {
   margin: 0;
   font-size: 14px;
-  color: #909399;
+  color: #86868b;
 }
 
 .login-btn {
@@ -181,14 +164,14 @@ const handleLogin = async () => {
   font-size: 16px;
   font-weight: 500;
   border-radius: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
+  background: #1d1d1f !important;
+  border: none !important;
   transition: all 0.3s ease;
 }
 
 .login-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .login-btn:disabled {
@@ -199,11 +182,11 @@ const handleLogin = async () => {
   margin-top: 20px;
   text-align: center;
   font-size: 14px;
-  color: #606266;
+  color: #86868b;
 }
 
 .footer-tip a {
-  color: #667eea;
+  color: #1d1d1f;
   text-decoration: none;
   font-weight: 500;
   margin-left: 4px;
@@ -215,7 +198,7 @@ const handleLogin = async () => {
 
 :deep(.el-form-item__label) {
   font-weight: 500;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 :deep(.el-input__wrapper) {
@@ -224,6 +207,26 @@ const handleLogin = async () => {
 }
 
 :deep(.el-input__wrapper:focus-within) {
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ============ Mobile: <= 768px ============ */
+@media (max-width: 768px) {
+  .login-container {
+    padding: 16px;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .card-header h2 {
+    font-size: 22px;
+  }
+
+  .card-header {
+    margin-bottom: 20px;
+  }
 }
 </style>

@@ -226,7 +226,7 @@ const handleGenerateQuiz = async () => {
   min-height: 100vh;
   padding: 24px;
   position: relative;
-  background: #ffffff;
+  background: #f5f5f7;
 }
 
 .edit-container {
@@ -235,29 +235,29 @@ const handleGenerateQuiz = async () => {
 }
 
 .back-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1d1d1f;
   border: none;
   color: #fff;
   border-radius: 24px;
   margin-bottom: 20px;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .back-btn:hover {
   transform: translateX(-4px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .edit-card {
   border-radius: 20px;
   background: #fff;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   border: none;
 }
 
 .edit-card :deep(.el-card__header) {
-  border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+  border-bottom: 1px solid #f0f0f0;
   padding: 20px 24px;
 }
 
@@ -269,12 +269,12 @@ const handleGenerateQuiz = async () => {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .edit-form :deep(.el-form-item__label) {
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
   font-size: 15px;
 }
 
@@ -282,27 +282,27 @@ const handleGenerateQuiz = async () => {
 .edit-form :deep(.el-select .el-input__wrapper) {
   border-radius: 12px;
   padding: 4px 16px;
-  background: #f8f9fc;
+  background: #f5f5f7;
   box-shadow: none;
-  border: 1px solid #e4e7ed;
+  border: 1px solid #e0e0e0;
   transition: all 0.3s ease;
 }
 
 .edit-form :deep(.el-input__wrapper:hover),
 .edit-form :deep(.el-select .el-input__wrapper:hover) {
-  border-color: #667eea;
+  border-color: #1d1d1f;
 }
 
 .edit-form :deep(.el-input__wrapper.is-focus),
 .edit-form :deep(.el-select .el-input__wrapper.is-focus) {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: #1d1d1f;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
 .editor-wrapper {
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #e4e7ed;
+  border: 1px solid #e0e0e0;
 }
 
 .quiz-action {
@@ -310,17 +310,17 @@ const handleGenerateQuiz = async () => {
 }
 
 .quiz-action :deep(.el-button--warning) {
-  background: linear-gradient(135deg, #e6a23c 0%, #fbbc24 100%);
+  background: #e6a23c;
   border: none;
   border-radius: 24px;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(230, 162, 60, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
 }
 
 .quiz-action :deep(.el-button--warning:hover) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(230, 162, 60, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .form-actions {
@@ -330,19 +330,19 @@ const handleGenerateQuiz = async () => {
 }
 
 .save-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1d1d1f;
   border: none;
   border-radius: 24px;
   font-weight: 600;
   font-size: 16px;
   padding: 12px 32px;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
 }
 
 .save-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .save-btn:disabled {
@@ -350,16 +350,61 @@ const handleGenerateQuiz = async () => {
 }
 
 .form-actions :deep(.el-button--danger) {
-  background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+  background: #f56c6c;
   border: none;
   border-radius: 24px;
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
 }
 
 .form-actions :deep(.el-button--danger:hover) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(245, 101, 101, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* ============ Mobile: <= 768px ============ */
+@media (max-width: 768px) {
+  .note-edit-page {
+    padding: 12px;
+  }
+
+  .edit-container {
+    max-width: 100%;
+  }
+
+  .edit-card :deep(.el-card__header) {
+    padding: 16px;
+  }
+
+  .edit-card :deep(.el-card__body) {
+    padding: 16px;
+  }
+
+  .card-header h2 {
+    font-size: 20px;
+  }
+
+  .editor-wrapper :deep(.toastui-editor-defaultUI) {
+    height: 350px !important;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .save-btn {
+    width: 100%;
+    padding: 12px 20px;
+  }
+
+  .form-actions :deep(.el-button--danger) {
+    width: 100%;
+  }
+
+  .back-btn {
+    margin-bottom: 12px;
+  }
 }
 </style>

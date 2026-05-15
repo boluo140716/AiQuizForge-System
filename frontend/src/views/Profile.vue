@@ -79,7 +79,7 @@
         <el-progress
           :percentage="notesProgress"
           :stroke-width="10"
-          :color="'#667eea'"
+          :color="'#1d1d1f'"
         />
       </div>
       <div class="progress-item">
@@ -87,7 +87,7 @@
         <el-progress
           :percentage="quizProgress"
           :stroke-width="10"
-          :color="'#764ba2'"
+          :color="'#86868b'"
         />
       </div>
       <div class="progress-item">
@@ -147,7 +147,7 @@ onMounted(fetchProfile)
 .profile-page {
   padding: 24px;
   min-height: 100vh;
-  background: #f5f7fa;
+  background: #f5f5f7;
 }
 
 .page-header {
@@ -161,7 +161,7 @@ onMounted(fetchProfile)
   margin: 0;
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .profile-card {
@@ -176,7 +176,7 @@ onMounted(fetchProfile)
 }
 
 .user-avatar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1d1d1f;
   color: #fff;
   font-size: 32px;
   font-weight: 600;
@@ -186,13 +186,13 @@ onMounted(fetchProfile)
   margin: 0 0 8px;
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .user-info .email {
   margin: 0 0 4px;
   font-size: 14px;
-  color: #909399;
+  color: #86868b;
 }
 
 .user-info .join-date {
@@ -233,34 +233,34 @@ onMounted(fetchProfile)
 }
 
 .notes-icon {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1d1d1f;
   color: #fff;
 }
 
 .quiz-icon {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: #86868b;
   color: #fff;
 }
 
 .wrong-icon {
-  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  background: #f56c6c;
   color: #fff;
 }
 
 .rate-icon {
-  background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+  background: #1d1d1f;
   color: #fff;
 }
 
 .stat-value {
   font-size: 28px;
   font-weight: 700;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .stat-label {
   font-size: 14px;
-  color: #909399;
+  color: #86868b;
 }
 
 .progress-card {
@@ -271,7 +271,7 @@ onMounted(fetchProfile)
   margin: 0 0 20px;
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .progress-item {
@@ -286,6 +286,84 @@ onMounted(fetchProfile)
   display: block;
   margin-bottom: 8px;
   font-size: 14px;
-  color: #606266;
+  color: #86868b;
+}
+
+/* ============ Mobile: <= 768px ============ */
+@media (max-width: 768px) {
+  .profile-page {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .page-header h2 {
+    font-size: 20px;
+  }
+
+  .user-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .user-avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 26px;
+  }
+
+  .user-info .username {
+    font-size: 20px;
+  }
+
+  .stats-row {
+    margin-bottom: 16px;
+  }
+
+  .stats-row :deep(.el-row) {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .stats-row :deep(.el-col) {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+    margin-bottom: 12px;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .stat-value {
+    font-size: 24px;
+  }
+
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+    border-radius: 10px;
+  }
+
+  .stat-card.clickable:hover {
+    transform: translateY(-2px);
+  }
+
+  .progress-card {
+    padding: 16px;
+  }
+
+  .progress-card h3 {
+    font-size: 16px;
+  }
+
+  .progress-label {
+    font-size: 13px;
+  }
 }
 </style>

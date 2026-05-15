@@ -302,7 +302,7 @@ watch(() => route.query.notebook, () => {
   margin: 0;
   font-size: 28px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
 }
 
 .user-info {
@@ -313,13 +313,13 @@ watch(() => route.query.notebook, () => {
   padding: 8px 16px;
   border-radius: 24px;
   transition: all 0.3s ease;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  background: #1d1d1f;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .user-info:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .user-avatar {
@@ -360,17 +360,17 @@ watch(() => route.query.notebook, () => {
 }
 
 .toolbar :deep(.el-button) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1d1d1f;
   border: none;
   border-radius: 24px;
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
 }
 
 .toolbar :deep(.el-button:hover) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .notes-container {
@@ -383,12 +383,12 @@ watch(() => route.query.notebook, () => {
   border-radius: 16px;
   border: none;
   background: #fff;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .note-card:hover {
   transform: translateY(-6px);
-  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .note-card-header {
@@ -402,7 +402,7 @@ watch(() => route.query.notebook, () => {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: #1d1d1f;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -418,8 +418,8 @@ watch(() => route.query.notebook, () => {
 }
 
 .more-icon:hover {
-  background: #f5f7fa;
-  color: #667eea;
+  background: #f5f5f7;
+  color: #1d1d1f;
 }
 
 .note-meta {
@@ -432,9 +432,9 @@ watch(() => route.query.notebook, () => {
 }
 
 .note-meta :deep(.el-tag) {
-  background: rgba(102, 126, 234, 0.1);
-  border-color: rgba(102, 126, 234, 0.2);
-  color: #667eea;
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #86868b;
 }
 
 .date {
@@ -448,9 +448,9 @@ watch(() => route.query.notebook, () => {
 }
 
 .note-tags :deep(.el-tag) {
-  background: rgba(118, 75, 162, 0.1);
-  border-color: rgba(118, 75, 162, 0.2);
-  color: #764ba2;
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #86868b;
 }
 
 .pagination-wrap {
@@ -480,11 +480,58 @@ watch(() => route.query.notebook, () => {
 }
 
 :deep(.el-dropdown-menu__item) {
-  color: #303133;
+  color: #1d1d1f;
 }
 
 :deep(.el-dropdown-menu__item:hover) {
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: rgba(0, 0, 0, 0.06);
+  color: #1d1d1f;
+}
+
+/* ============ Mobile: <= 768px ============ */
+@media (max-width: 768px) {
+  .note-list-page {
+    padding: 16px;
+  }
+
+  .page-header {
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .header-left h2 {
+    font-size: 22px;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+    margin-bottom: 20px;
+  }
+
+  .toolbar-left {
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .toolbar-left :deep(.el-select) {
+    width: 100% !important;
+  }
+
+  .toolbar-left :deep(.el-input) {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+
+  .toolbar > :deep(.el-button) {
+    width: 100%;
+  }
+
+  .note-card:hover {
+    transform: translateY(-3px);
+  }
 }
 </style>
