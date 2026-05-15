@@ -114,14 +114,15 @@ class WrongQuestionSerializer(serializers.ModelSerializer):
     note_title = serializers.CharField(source='quiz.note.title', read_only=True)
     notebook_id = serializers.IntegerField(source='quiz.note.notebook_id', read_only=True)
     notebook_name = serializers.CharField(source='quiz.note.notebook.name', read_only=True)
+    tags = serializers.JSONField(source='quiz.note.tags', read_only=True)
 
     class Meta:
         model = WrongQuestion
         fields = [
             'id', 'question', 'question_stem', 'question_options',
             'question_answer', 'question_explanation',
-            'quiz_id', 'note_title', 'notebook_id', 'notebook_name', 'user_answer',
-            'wrong_count', 'last_wrong_at'
+            'quiz_id', 'note_title', 'notebook_id', 'notebook_name', 'tags',
+            'user_answer', 'wrong_count', 'last_wrong_at'
         ]
 
 

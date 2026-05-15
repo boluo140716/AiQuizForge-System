@@ -97,6 +97,20 @@
           :value="nb.id"
         />
       </el-select>
+      <el-select
+        v-model="filterTag"
+        placeholder="按标签筛选"
+        clearable
+        @change="fetchWrongQuestions"
+        style="width: 180px; margin-left: 12px;"
+      >
+        <el-option
+          v-for="tag in tagOptions"
+          :key="tag"
+          :label="tag"
+          :value="tag"
+        />
+      </el-select>
     </div>
 
     <!-- 错题列表 -->
@@ -173,7 +187,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, WarningFilled, Document, Notebook, Refresh, Delete, Check, Close, RefreshRight
 } from '@element-plus/icons-vue'
-import { getWrongQuestions, removeWrongQuestion, rePracticeWrong, getNotebooks } from '@/api'
+import { getWrongQuestions, removeWrongQuestion, rePracticeWrong, getNotebooks, getWrongQuestionTags } from '@/api'
 
 const router = useRouter()
 
@@ -185,8 +199,10 @@ const total = computed(() => wrongList.value.length)
 
 const filterQuizId = ref(null)
 const filterNotebookId = ref(null)
+const filterTag = ref(null)
 const quizOptions = ref([])
 const notebookOptions = ref([])
+const tagOptions = ref([])
 
 const quizCount = computed(() => {
   const ids = new Set(wrongList.value.map(w => w.quiz_id))
@@ -214,6 +230,7 @@ const fetchWrongQuestions = async () => {
     const params = {}
     if (filterQuizId.value) params.quiz_id = filterQuizId.value
     if (filterNotebookId.value) params.notebook_id = filterNotebookId.value
+    if (filterTag.value) params.tag = filterTag.value
 
     const res = await getWrongQuestions(params)
     const data = res.data
@@ -243,6 +260,15 @@ const fetchNotebooks = async () => {
   }
 }
 
+const fetchTags = async () => {
+  try {
+    const res = await getWrongQuestionTags()
+    tagOptions.value = res.data.tags || []
+  } catch (e) {
+    console.error('获取标签失败', e)
+  }
+}
+
 const handleRemove = async (wrongId) => {
   try {
     await ElMessageBox.confirm('确定要从错题本中移除这道题吗？', '提示', {
@@ -263,7 +289,8 @@ const handleRePractice = async () => {
     const res = await rePracticeWrong({
       limit: 5,
       quiz_id: filterQuizId.value || undefined,
-      notebook_id: filterNotebookId.value || undefined
+      notebook_id: filterNotebookId.value || undefined,
+      tag: filterTag.value || undefined
     })
 
     const practiceQuizId = res.data.practice_quiz_id
@@ -281,6 +308,7 @@ const handleRePractice = async () => {
 onMounted(() => {
   fetchWrongQuestions()
   fetchNotebooks()
+  fetchTags()
 })
 </script>
 

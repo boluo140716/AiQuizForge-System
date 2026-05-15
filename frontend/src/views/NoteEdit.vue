@@ -40,8 +40,8 @@
           <el-form-item label="标签（用逗号分隔）">
             <el-input
               v-model="tagInput"
-              placeholder="例如：django, vue, python"
               size="large"
+              placeholder=""
             />
           </el-form-item>
 

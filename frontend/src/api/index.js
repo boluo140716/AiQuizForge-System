@@ -56,5 +56,8 @@ export const getWrongQuestions = (params) =>
 export const rePracticeWrong = (data) =>
   axios.post('/api/v1/wrong-questions/re-practice/', data)
 
+export const getWrongQuestionTags = () =>
+  axios.get('/api/v1/wrong-questions/tags/')
+
 export const removeWrongQuestion = (wrongId) =>
   axios.delete(`/api/v1/wrong-questions/${wrongId}/remove/`)

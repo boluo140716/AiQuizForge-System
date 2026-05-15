@@ -330,6 +330,12 @@ class WrongQuestionViewSet(viewsets.GenericViewSet):
         notebook_id=request.query_params.get('notebook_id')
         if notebook_id:
             queryset=queryset.filter(quiz__note__notebook_id=notebook_id)
+
+        #可选筛选，按标签
+        tag=request.query_params.get('tag')
+        if tag:
+            queryset=queryset.filter(quiz__note__tags__contains=tag)
+
         #按最后错误时间排序
         queryset=queryset.order_by('-last_wrong_at')
 
@@ -357,6 +363,12 @@ class WrongQuestionViewSet(viewsets.GenericViewSet):
         #可选筛选，按笔记
         if notebook_id:
             queryset=queryset.filter(quiz__note__notebook_id=notebook_id)
+
+        #可选筛选，按标签
+        tag=request.data.get('tag')
+        if tag:
+            queryset=queryset.filter(quiz__note__tags__contains=tag)
+
         #按错误次数降序排序
         queryset=queryset.order_by('-wrong_count')
         #获取去重后的题目ID
@@ -393,6 +405,19 @@ class WrongQuestionViewSet(viewsets.GenericViewSet):
             'questions': serializer.data
         }, status=status.HTTP_200_OK)
     
+    #获取所有错题关联的标签
+    @action(detail=False, methods=['get'], url_path='tags')
+    def tags(self, request):
+        queryset = self.get_queryset().filter(quiz__note__tags__isnull=False)
+        tag_set = set()
+        for wq in queryset:
+            tags = wq.quiz.note.tags
+            if isinstance(tags, list):
+                for t in tags:
+                    if isinstance(t, str) and t.strip():
+                        tag_set.add(t.strip())
+        return Response({'tags': sorted(tag_set)})
+
     #错题移除接口
     @action(detail=True, methods=['delete'], url_path='remove')
     def remove(self, request, pk=None):
