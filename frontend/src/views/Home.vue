@@ -83,7 +83,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useNotebookStore } from '@/stores/notebook'
 import { Delete, User, ArrowDown, SwitchButton, List, Warning } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -92,6 +92,7 @@ import axios from 'axios'
 
 const store = useNotebookStore()
 const router = useRouter()
+const route = useRoute()
 
 const dialogVisible = ref(false)
 const newNotebookName = ref('')
@@ -154,10 +155,13 @@ const handleSelect = (id) => {
 }
 
 const handleDelete = async (id) => {
+  const wasCurrent = store.currentNotebookId === id || route.query.notebook === String(id)
   try {
     await store.removeNotebook(id)
     ElMessage.success('笔记本已删除')
-    router.push('/')
+    if (wasCurrent) {
+      router.push('/')
+    }
   } catch {
     ElMessage.error('删除失败')
   }

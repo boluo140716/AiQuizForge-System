@@ -33,7 +33,7 @@ class NotePagination(PageNumberPagination):
     max_page_size = 50
 
 class NoteViewSet(viewsets.ModelViewSet):
-    permission_class=[permissions.IsAuthenticated] 
+    permission_classes=[permissions.IsAuthenticated]
     pagination_class=NotePagination
     filter_backends=[DjangoFilterBackend,filters.SearchFilter,filters.OrderingFilter]
     filterset_fields=['notebook']  # 按照笔记本过滤

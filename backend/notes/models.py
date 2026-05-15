@@ -23,7 +23,7 @@ class Note(models.Model):
     content_plain=models.TextField(verbose_name='笔记内容（纯文本格式）')#纯文本格式的笔记内容
     notebook=models.ForeignKey(Notebook,on_delete=models.CASCADE,related_name="notes",verbose_name="所属笔记本")
     user=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="notes",verbose_name="用户")
-    tags= models.JSONField(default=dict,blank=True,verbose_name="标签")
+    tags= models.JSONField(default=list,blank=True,verbose_name="标签")
     created_at=models.DateTimeField(auto_now_add=True,verbose_name="创建时间")
     updated_at=models.DateTimeField(auto_now=True,verbose_name="更新时间")
 

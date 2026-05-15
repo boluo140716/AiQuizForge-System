@@ -172,7 +172,7 @@ const answeredQuestions = computed(() => {
 })
 const answeredCount = computed(() => answeredQuestions.value.size)
 
-const optionLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+const optionLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 const scoreClass = computed(() => {
   if (!result.value) return ''

@@ -1,8 +1,6 @@
 from rest_framework import serializers
 from .models import User
 from django.contrib.auth.password_validation import validate_password
-from django.db.models import Avg, Count
-from notes.models import QuizAttempt, WrongQuestion,Note
 
 class RegisterSerializer(serializers.ModelSerializer):  # 自定义注册序列化器
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])

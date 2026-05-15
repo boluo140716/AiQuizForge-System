@@ -119,7 +119,7 @@
 
       <div v-else>
         <el-card
-          v-for="item in paginatedList"
+          v-for="item in wrongList"
           :key="item.id"
           class="wrong-item"
           shadow="hover"
@@ -195,7 +195,7 @@ const loading = ref(false)
 const wrongList = ref([])
 const page = ref(1)
 const pageSize = 10
-const total = computed(() => wrongList.value.length)
+const total = ref(0)
 
 const filterQuizId = ref(null)
 const filterNotebookId = ref(null)
@@ -219,15 +219,13 @@ const mostWrongCount = computed(() => {
   return Math.max(...wrongList.value.map(w => w.wrong_count))
 })
 
-const paginatedList = computed(() => {
-  const start = (page.value - 1) * pageSize
-  return wrongList.value.slice(start, start + pageSize)
-})
-
 const fetchWrongQuestions = async () => {
   loading.value = true
   try {
-    const params = {}
+    const params = {
+      page: page.value,
+      page_size: pageSize
+    }
     if (filterQuizId.value) params.quiz_id = filterQuizId.value
     if (filterNotebookId.value) params.notebook_id = filterNotebookId.value
     if (filterTag.value) params.tag = filterTag.value
@@ -235,6 +233,7 @@ const fetchWrongQuestions = async () => {
     const res = await getWrongQuestions(params)
     const data = res.data
     wrongList.value = data.results || data
+    total.value = data.count || wrongList.value.length
 
     // 提取测验选项
     const quizMap = new Map()

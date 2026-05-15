@@ -163,7 +163,8 @@ const handleDelete = async () => {
     await deleteNote(route.params.id)
     ElMessage.success('笔记已删除')
     router.push('/notes')
-  } catch {
+  } catch (e) {
+    // 用户取消删除
   } finally {
     deleting.value = false
   }

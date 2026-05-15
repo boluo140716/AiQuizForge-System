@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npx vite *)",
       "Bash(python manage.py makemigrations users)",
-      "Bash(python manage.py migrate)"
+      "Bash(python manage.py migrate)",
+      "Bash(python manage.py makemigrations notes --name fix_tags_default)",
+      "Bash(python manage.py test notes.users.tests notes.tests)",
+      "Bash(python manage.py test notes.tests)"
     ]
   }
 }

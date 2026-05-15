@@ -142,7 +142,7 @@ const review = ref(null)
 const attempts = ref([])
 const showAttempts = ref(false)
 
-const optionLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+const optionLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 const statusType = computed(() => {
   if (!review.value) return 'info'

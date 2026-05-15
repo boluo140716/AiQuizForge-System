@@ -152,6 +152,7 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, User, SwitchButton, Plus, Search, MoreFilled, Warning, List } from '@element-plus/icons-vue'
+import axios from 'axios'
 import { useNotebookStore } from '@/stores/notebook'
 import { getNotes, deleteNote, getNotebooks, getCurrentUser } from '@/api'
 
