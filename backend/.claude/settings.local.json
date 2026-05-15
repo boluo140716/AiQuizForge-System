@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vite *)",
+      "Bash(python manage.py makemigrations users)",
+      "Bash(python manage.py migrate)"
+    ]
+  }
+}

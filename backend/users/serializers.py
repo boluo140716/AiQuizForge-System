@@ -26,12 +26,26 @@ class RegisterSerializer(serializers.ModelSerializer):  # 自定义注册序列�
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email')
+        fields = ('id', 'username', 'email', 'avatar', 'display_name')
+
+class ProfileUpdateSerializer(serializers.Serializer):
+    avatar = serializers.ImageField(required=False)
+    display_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
+
+    def validate_avatar(self, value):
+        if value.size > 2 * 1024 * 1024:
+            raise serializers.ValidationError('头像文件不能超过 2MB')
+        ext = value.name.split('.')[-1].lower()
+        if ext not in ('jpg', 'jpeg', 'png'):
+            raise serializers.ValidationError('仅支持 JPG/PNG 格式')
+        return value
 
 class UserProfileSerializer(serializers.Serializer):
     id=serializers.IntegerField(read_only=True)
     username=serializers.CharField(read_only=True)
+    display_name=serializers.CharField(read_only=True, allow_blank=True)
     email=serializers.EmailField(read_only=True)
+    avatar=serializers.CharField(read_only=True, allow_null=True)
     date_joined=serializers.DateTimeField(read_only=True)
 
     #学习统计

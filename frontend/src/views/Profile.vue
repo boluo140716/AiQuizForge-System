@@ -12,11 +12,38 @@
     <!-- 用户信息卡片 -->
     <el-card class="profile-card" v-loading="loading">
       <div class="user-header">
-        <el-avatar :size="80" class="user-avatar">
-          {{ profile?.username?.charAt(0)?.toUpperCase() || 'U' }}
-        </el-avatar>
+        <div class="avatar-upload-wrapper" @click="triggerUpload" title="点击更换头像">
+          <el-avatar :size="80" :src="avatarUrl" class="user-avatar" v-loading="avatarUploading">
+            {{ avatarFallback }}
+          </el-avatar>
+          <div class="avatar-overlay">
+            <el-icon><Camera /></el-icon>
+          </div>
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept="image/jpeg,image/png"
+            style="display: none"
+            @change="handleAvatarChange"
+          />
+        </div>
         <div class="user-info">
-          <h1 class="username">{{ profile?.username }}</h1>
+          <div class="username-row" @click.stop>
+            <template v-if="editingName">
+              <el-input
+                v-model="nameEditValue"
+                ref="nameInputRef"
+                maxlength="50"
+                class="name-edit-input"
+                @keyup.enter="saveDisplayName"
+                @blur="saveDisplayName"
+                @keyup.escape="cancelEditName"
+              />
+            </template>
+            <h1 v-else class="username" @click="startEditName" title="点击修改昵称">
+              {{ profile?.display_name || profile?.username }}
+            </h1>
+          </div>
           <p class="email">{{ profile?.email || '未设置邮箱' }}</p>
           <p class="join-date">加入于 {{ profile?.date_joined?.slice(0, 10) }}</p>
         </div>
@@ -103,13 +130,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { ArrowLeft, Document, List, Warning, TrendCharts } from '@element-plus/icons-vue'
-import { getUserProfile } from '@/api'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { ArrowLeft, Document, List, Warning, TrendCharts, Camera } from '@element-plus/icons-vue'
+import { getUserProfile, updateProfile } from '@/api'
 import { ElMessage } from 'element-plus'
 
 const loading = ref(false)
 const profile = ref(null)
+const fileInputRef = ref(null)
+const avatarUploading = ref(false)
+
+const avatarUrl = computed(() => profile.value?.avatar || '')
+const avatarFallback = computed(() => profile.value?.username?.charAt(0)?.toUpperCase() || 'U')
 
 const notesProgress = computed(() => {
   const total = profile.value?.total_notes || 0
@@ -137,6 +169,76 @@ const fetchProfile = async () => {
     ElMessage.error('获取个人资料失败')
   } finally {
     loading.value = false
+  }
+}
+
+const editingName = ref(false)
+const nameEditValue = ref('')
+const nameInputRef = ref(null)
+const nameSaving = ref(false)
+
+const startEditName = () => {
+  nameEditValue.value = profile.value?.display_name || profile.value?.username || ''
+  editingName.value = true
+  nextTick(() => nameInputRef.value?.focus())
+}
+
+const saveDisplayName = async () => {
+  if (!editingName.value) return
+  const val = nameEditValue.value.trim()
+  editingName.value = false
+  if (!val) return
+  if (val === (profile.value?.display_name || profile.value?.username)) return
+
+  nameSaving.value = true
+  try {
+    const formData = new FormData()
+    formData.append('display_name', val)
+    const res = await updateProfile(formData)
+    profile.value = { ...profile.value, display_name: res.data.display_name, avatar: res.data.avatar }
+    ElMessage.success('昵称已更新')
+  } catch (e) {
+    ElMessage.error(e.response?.data?.display_name?.[0] || '修改失败')
+  } finally {
+    nameSaving.value = false
+  }
+}
+
+const cancelEditName = () => {
+  editingName.value = false
+}
+
+const triggerUpload = () => {
+  fileInputRef.value?.click()
+}
+
+const handleAvatarChange = async (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  const ext = file.name.split('.').pop().toLowerCase()
+  if (!['jpg', 'jpeg', 'png'].includes(ext)) {
+    ElMessage.error('仅支持 JPG/PNG 格式图片')
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.error('头像文件不能超过 2MB')
+    return
+  }
+
+  avatarUploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('avatar', file)
+    const res = await updateProfile(formData)
+    profile.value = { ...profile.value, avatar: res.data.avatar, display_name: res.data.display_name }
+    ElMessage.success('头像已更新')
+  } catch (err) {
+    const detail = err.response?.data?.avatar?.[0] || err.response?.data?.detail || '上传失败'
+    ElMessage.error(typeof detail === 'string' ? detail : '上传失败')
+  } finally {
+    avatarUploading.value = false
+    e.target.value = ''
   }
 }
 
@@ -182,11 +284,71 @@ onMounted(fetchProfile)
   font-weight: 600;
 }
 
+.avatar-upload-wrapper {
+  position: relative;
+  cursor: pointer;
+  display: inline-block;
+  border-radius: 50%;
+  flex-shrink: 0;
+  line-height: 0;
+  transition: transform 0.3s ease;
+}
+
+.avatar-upload-wrapper:hover {
+  transform: scale(1.06);
+}
+
+.avatar-upload-wrapper:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.avatar-upload-wrapper :deep(.el-avatar) {
+  transition: filter 0.3s ease;
+}
+
+.avatar-upload-wrapper:hover :deep(.el-avatar) {
+  filter: brightness(0.85);
+}
+
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.avatar-overlay .el-icon {
+  font-size: 22px;
+  color: #fff;
+}
+
 .user-info .username {
   margin: 0 0 8px;
   font-size: 24px;
   font-weight: 600;
   color: #1d1d1f;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.user-info .username:hover {
+  color: #86868b;
+}
+
+.username-row {
+  display: inline-flex;
+  align-items: center;
+}
+
+.name-edit-input {
+  max-width: 240px;
+  margin-bottom: 8px;
 }
 
 .user-info .email {
@@ -364,6 +526,10 @@ onMounted(fetchProfile)
 
   .progress-label {
     font-size: 13px;
+  }
+
+  .avatar-upload-wrapper:hover {
+    transform: none;
   }
 }
 </style>

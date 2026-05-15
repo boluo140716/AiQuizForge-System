@@ -2,7 +2,7 @@ from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import User
-from .serializers import RegisterSerializer, UserSerializer, UserProfileSerializer
+from .serializers import RegisterSerializer, UserSerializer, UserProfileSerializer, ProfileUpdateSerializer
 from django.db.models import Avg
 from notes.models import Note, QuizAttempt, WrongQuestion
 
@@ -15,9 +15,24 @@ class MeView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def get(self, request):
-        serializer = UserSerializer(request.user)
+        serializer = UserSerializer(request.user, context={'request': request})
         return Response(serializer.data)
-    
+
+    def patch(self, request):
+        serializer = ProfileUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        if 'avatar' in data:
+            request.user.avatar = data['avatar']
+        if 'display_name' in data:
+            request.user.display_name = data['display_name']
+
+        request.user.save()
+
+        user_serializer = UserSerializer(request.user, context={'request': request})
+        return Response(user_serializer.data)
+
 class ProfileView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
     def get(self, request):
@@ -37,7 +52,9 @@ class ProfileView(APIView):
         serializer = UserProfileSerializer({
             'id': user.id,
             'username': user.username,
+            'display_name': user.display_name,
             'email': user.email,
+            'avatar': request.build_absolute_uri(user.avatar.url) if user.avatar else None,
             'date_joined': user.date_joined,
             'total_notes': total_notes,
             'total_quizzes': total_quizzes,

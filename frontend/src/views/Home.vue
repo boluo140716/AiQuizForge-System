@@ -38,10 +38,10 @@
       <div class="header-right">
         <el-dropdown trigger="click" @command="handleCommand">
           <div class="user-info">
-            <el-avatar :size="36" class="user-avatar">
+            <el-avatar :size="36" :src="userAvatar" class="user-avatar">
               {{ userInitial }}
             </el-avatar>
-            <span class="username">{{ userName }}</span>
+            <span class="username">{{ userDisplayName }}</span>
             <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
@@ -96,11 +96,13 @@ const router = useRouter()
 const dialogVisible = ref(false)
 const newNotebookName = ref('')
 const userName = ref('用户')
+const userDisplayName = ref('')
 const userEmail = ref('')
+const userAvatar = ref('')
 
-// 计算用户首字母
+// 计算用户首字母（无头像时回退）
 const userInitial = computed(() => {
-  return userName.value?.charAt(0)?.toUpperCase() || 'U'
+  return userDisplayName.value?.charAt(0)?.toUpperCase() || 'U'
 })
 
 // 只渲染有效笔记本
@@ -118,7 +120,9 @@ const fetchUserInfo = async () => {
   try {
     const res = await getCurrentUser()
     userName.value = res.data.username
+    userDisplayName.value = res.data.display_name || res.data.username
     userEmail.value = res.data.email || ''
+    userAvatar.value = res.data.avatar || ''
   } catch (e) {
     console.error('获取用户信息失败', e)
   }

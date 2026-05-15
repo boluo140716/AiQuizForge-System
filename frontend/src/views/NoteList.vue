@@ -8,10 +8,10 @@
       <div class="header-right">
         <el-dropdown trigger="click" @command="handleCommand">
           <div class="user-info">
-            <el-avatar :size="36" class="user-avatar">
+            <el-avatar :size="36" :src="userInfo.avatar" class="user-avatar">
               {{ userInfo?.username?.charAt(0)?.toUpperCase() || 'U' }}
             </el-avatar>
-            <span class="username">{{ userInfo?.username || '用户' }}</span>
+            <span class="username">{{ userInfo?.display_name || userInfo?.username || '用户' }}</span>
             <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
           </div>
           <template #dropdown>

@@ -16,6 +16,10 @@ export const deleteNote = (id) => axios.delete(`/api/v1/notes/${id}/`)
 // ========== 用户 API ==========
 export const getUserProfile = () => axios.get('/api/v1/auth/profile/')
 export const getCurrentUser = () => axios.get('/api/v1/auth/me/')
+export const updateProfile = (formData) =>
+  axios.patch('/api/v1/auth/me/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 
 // ========== 测验 API ==========
 export const generateQuiz = (noteId, questionCount = 5) =>
