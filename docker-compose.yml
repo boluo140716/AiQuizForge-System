@@ -1,0 +1,114 @@
+services:
+  # ========== MySQL 数据库 ==========
+  db:
+    image: mysql:8.0
+    container_name: quizforge-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: quizforge_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ========== Redis 缓存 + 消息队列 ==========
+  redis:
+    image: redis:7-alpine
+    container_name: quizforge-redis
+    command: redis-server --requirepass 123456 --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "123456", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========== Django 后端 ==========
+  backend:
+    build: ./backend
+    container_name: quizforge-backend
+    environment:
+      - SECRET_KEY=django-insecure-docker-change-in-production
+      - DB_NAME=quizforge_db
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - DB_HOST=db
+      - DB_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=123456
+      - AI_SERVICE_URL=http://ai-service:8001
+      - AI_SERVICE_TOKEN=quizforge-internal-secret-token-2026
+    ports:
+      - "8000:8000"
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ========== Celery 异步任务 Worker ==========
+  celery-worker:
+    build: ./backend
+    container_name: quizforge-celery
+    command: celery -A config worker -l info
+    environment:
+      - SECRET_KEY=django-insecure-docker-change-in-production
+      - DB_NAME=quizforge_db
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - DB_HOST=db
+      - DB_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=123456
+      - AI_SERVICE_URL=http://ai-service:8001
+      - AI_SERVICE_TOKEN=quizforge-internal-secret-token-2026
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ========== FastAPI AI 微服务 ==========
+  ai-service:
+    build: ./ai_service
+    container_name: quizforge-ai
+    env_file:
+      - ./ai_service/.env
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
+  #========== Vue3 前端 (Nginx) ==========
+  frontend:
+    build: ./frontend
+    container_name: quizforge-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+      - ai-service
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+  media_data:

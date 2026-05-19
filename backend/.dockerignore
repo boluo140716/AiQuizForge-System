@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+env/
+.venv/
+.git/
+media/
+*.sqlite3
+*.log
+celerybeat-schedule
+celerybeat.pid

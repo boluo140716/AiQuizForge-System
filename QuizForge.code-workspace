@@ -12,9 +12,5 @@
             "name": "Vue前端(frontend)",
             "path": "frontend"
         }
-    ],
-    "settings": {
-        "python.defaultInterpreterPath": "${workspaceFolder:Django后端}/venv/Scripts/python.exe",
-        "Codegeex.RepoIndex": true
-    }
+    ]
 }
