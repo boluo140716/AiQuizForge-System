@@ -11,7 +11,7 @@ AI 驱动的笔记管理与测验生成平台。用户创建笔记本，使用 M
 | 数据库 | MySQL 8.0 |
 | 前端 | Vue 3.5 + Vite 8 + Element Plus 2.13 |
 | 状态管理 | Pinia 3.0 |
-| AI 服务 | FastAPI + OpenAI SDK（对接阿里云 DashScope Qwen 模型） |
+| AI 服务 | FastAPI +langchain+OpenAI SDK（对接deepseek模型） |
 | 认证 | SimpleJWT（JWT 双 Token 机制） |
 | 容器化 | Docker + Docker Compose |
 
