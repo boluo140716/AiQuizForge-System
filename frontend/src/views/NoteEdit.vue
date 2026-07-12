@@ -33,8 +33,13 @@
             </el-select>
           </el-form-item>
 
-          <el-form-item label="内容（支持 Markdown）">
+          <el-form-item>
+            <template #label>
+              内容（支持 Markdown）
+              <span class="label-hint">建议不超过 3000 字</span>
+            </template>
             <div ref="editorRef" class="editor-wrapper" />
+            <div class="content-count">共 {{ contentLength }} 字</div>
           </el-form-item>
 
           <el-form-item label="标签（用逗号分隔）">
@@ -94,6 +99,13 @@ const saving = ref(false)
 const deleting = ref(false)
 const generating = ref(false)
 const currentQuizId = ref(null)
+const contentLength = ref(0)
+
+const updateContentLength = () => {
+  if (editor) {
+    contentLength.value = editor.getMarkdown().length
+  }
+}
 
 onMounted(async () => {
   await store.fetchNotebooks()
@@ -117,8 +129,12 @@ onMounted(async () => {
       el: editorRef.value,
       initialValue: form.content_md,
       previewStyle: 'vertical',
-      height: '500px'
+      height: '500px',
+      events: {
+        change: () => updateContentLength()
+      }
     })
+    updateContentLength()
   }
 })
 
@@ -304,6 +320,27 @@ const handleGenerateQuiz = async () => {
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid #e0e0e0;
+}
+
+.label-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: #86868b;
+  margin-left: 8px;
+}
+
+.content-count {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #86868b;
+  text-align: right;
+}
+
+.content-count {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #86868b;
+  text-align: right;
 }
 
 .quiz-action {

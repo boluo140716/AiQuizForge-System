@@ -1,34 +1,60 @@
 import json
+import asyncio
+import hashlib
 import logging
+import time
 from typing import List, Dict
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.runnables import RetryPolicy
-from pydantic import BaseModel, Field
 from decouple import config
-from prompt import build_prompt
+from prompt import build_prompt, split_content
+from schemas import QuestionItem, QuizOutput
 
 logger = logging.getLogger(__name__)
 
 USE_MOCK = config('USE_MOCK', default='false').lower() == 'true'
+_llm_client = None
 
+# 简易内存缓存（TTL 5 分钟，避免相同笔记重复调用 LLM）
+_CACHE_TTL = 300
+_CACHE_MAX_SIZE = 128
+_cache: dict[str, tuple[float, list[dict]]] = {}
 
-class Question(BaseModel):
-    stem: str = Field(description="题目题干")
-    options: List[str] = Field(description="选项列表")
-    answer: str = Field(description="正确答案")
-    explanation: str = Field(description="解析")
+def _cache_key(content: str, count: int) -> str:
+    return hashlib.md5(f"{content}_{count}".encode()).hexdigest()
+
+def _cache_get(content: str, count: int) -> list[dict] | None:
+    key = _cache_key(content, count)
+    if key in _cache:
+        ts, data = _cache[key]
+        if time.time() - ts < _CACHE_TTL:
+            logger.info(f"缓存命中，直接返回 {len(data)} 道题目")
+            return data
+        del _cache[key]
+    return None
+
+def _cache_set(content: str, count: int, data: list[dict]):
+    if len(_cache) >= _CACHE_MAX_SIZE:
+        oldest_key = min(_cache, key=lambda k: _cache[k][0])
+        del _cache[oldest_key]
+        logger.info("缓存已满，淘汰最旧条目")
+    _cache[_cache_key(content, count)] = (time.time(), data)
+
 
 
 def _get_llm_client():
-    return ChatOpenAI(
-        model=config('LLM_MODEL', default='deepseek-v4-flash'),
-        api_key=config('LLM_API_KEY'),
-        base_url=config('LLM_BASE_URL', default='https://api.deepseek.com'),
-        temperature=0.7,
-        max_completion_tokens=2000,
-    )
+    global _llm_client
+    if _llm_client is None:
+        _llm_client = ChatOpenAI(
+            model=config('LLM_MODEL', default='deepseek-v4-flash'),
+            api_key=config('LLM_API_KEY'),
+            base_url=config('LLM_BASE_URL', default='https://api.deepseek.com'),
+            temperature=0.4,
+            max_completion_tokens=4000,
+            timeout=config('LLM_TIMEOUT', default=60, cast=int),
+        )
+    return _llm_client
 
 
 def _generate_mock_questions(content: str, count: int) -> List[Dict]:
@@ -49,17 +75,15 @@ def _generate_mock_questions(content: str, count: int) -> List[Dict]:
     return mock_questions
 
 
-def generate_quiz_questions(content: str, count: int) -> List[Dict]:
-    if USE_MOCK:
-        return _generate_mock_questions(content, count)
+async def _generate_from_chunk(content: str, count: int, chunk_index: int, total_chunks: int) -> List[Dict]:
+    """对单个文本块生成题目"""
+    prompt_text = build_prompt(content, count, chunk_index, total_chunks)
+    logger.info(f"Chunk {chunk_index+1}/{total_chunks} Prompt 长度: {len(prompt_text)} 字符")
 
-    prompt_text = build_prompt(content, count)
-    logger.info(f"生成的 Prompt 长度: {len(prompt_text)} 字符")
-
-    parser = JsonOutputParser(pydantic_object=Question)
+    parser = JsonOutputParser(pydantic_object=QuizOutput)
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "你是一个严格的出题系统，只输出 JSON 数组，不输出任何其他内容。\n\n{format_instructions}"),
+        ("system", "你是一个严格的出题系统，只输出 JSON 对象，不输出任何其他内容。\n\n{format_instructions}"),
         ("human", "{input}")
     ])
 
@@ -70,16 +94,101 @@ def generate_quiz_questions(content: str, count: int) -> List[Dict]:
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            result = chain.invoke({
-                "input": prompt_text,
-                "format_instructions": parser.get_format_instructions()
-            })
-            logger.info(f"成功生成 {len(result)} 道题目")
-            return result[:count]
+            result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    chain.invoke,
+                    {
+                        "input": prompt_text,
+                        "format_instructions": parser.get_format_instructions()
+                    }
+                ),
+                timeout=config('LLM_TIMEOUT', default=60, cast=int) + 30
+            )
+            questions = result['questions']
+            logger.info(f"Chunk {chunk_index+1} 成功生成 {len(questions)} 道题目")
+
+            if len(questions) < count and attempt < max_retries - 1:
+                logger.warning(
+                    f"Chunk {chunk_index+1} 生成数量不足：期望 {count} 道，实际 {len(questions)} 道，"
+                    f"第 {attempt + 1} 次重试..."
+                )
+                continue
+
+            if len(questions) < count:
+                logger.warning(
+                    f"Chunk {chunk_index+1} 生成数量不足：期望 {count} 道，实际 {len(questions)} 道，"
+                    f"已重试 {max_retries} 次仍不足"
+                )
+            return questions
 
         except Exception as e:
-            logger.error(f"生成题目失败（第 {attempt + 1}/{max_retries} 次）: {e}")
+            logger.error(f"Chunk {chunk_index+1} 生成失败（第 {attempt + 1}/{max_retries} 次）: {e}")
             if attempt < max_retries - 1:
-                continue
+                await asyncio.sleep(2 ** attempt)
             else:
-                raise RuntimeError(f"在 {max_retries} 次尝试后仍无法生成有效题目。错误: {e}")
+                raise RuntimeError(f"Chunk {chunk_index+1} 在 {max_retries} 次尝试后仍无法生成有效题目。")
+
+
+def _deduplicate_questions(questions: list[dict]) -> list[dict]:
+    """简单的题干去重：移除高度相似的题目"""
+    if len(questions) <= 1:
+        return questions
+    result = []
+    for q in questions:
+        stem = q['stem'].strip()
+        is_dup = False
+        for existing in result:
+            existing_stem = existing['stem'].strip()
+            if stem in existing_stem or existing_stem in stem:
+                is_dup = True
+                break
+            common = len(set(stem) & set(existing_stem))
+            max_len = max(len(stem), len(existing_stem))
+            if max_len > 0 and common / max_len > 0.8:
+                is_dup = True
+                break
+        if not is_dup:
+            result.append(q)
+    if len(result) < len(questions):
+        logger.info(f"去重：{len(questions)} → {len(result)} 道题目")
+    return result
+
+
+async def generate_quiz_questions(content: str, count: int) -> List[Dict]:
+    if USE_MOCK:
+        return _generate_mock_questions(content, count)
+
+    cached = _cache_get(content, count)
+    if cached is not None:
+        return cached
+
+    chunks = split_content(content)
+
+    if len(chunks) == 1:
+        result = await _generate_from_chunk(chunks[0], count, 0, 1)
+        _cache_set(content, count, result)
+        return result
+
+    logger.info(f"笔记过长（{len(content)} 字符），已切分为 {len(chunks)} 块，使用 Map-Reduce 模式生成")
+
+    questions_per_chunk = count // len(chunks)
+    remainder = count % len(chunks)
+
+    tasks = []
+    for i, chunk in enumerate(chunks):
+        chunk_count = questions_per_chunk + (1 if i < remainder else 0)
+        if chunk_count == 0:
+            continue
+        tasks.append(_generate_from_chunk(chunk, chunk_count, i, len(chunks)))
+
+    chunk_results = await asyncio.gather(*tasks)
+
+    all_questions = []
+    for result_chunk in chunk_results:
+        all_questions.extend(result_chunk)
+
+    all_questions = _deduplicate_questions(all_questions)
+    result = all_questions[:count]
+    _cache_set(content, count, result)
+    logger.info(f"Map-Reduce 完成，共生成 {len(result)} 道题目（{len(chunks)} 块并发）")
+    return result
