@@ -1,7 +1,8 @@
-import json
 import asyncio
+import difflib
 import hashlib
 import logging
+import threading
 import time
 from typing import List, Dict
 from langchain_openai import ChatOpenAI
@@ -15,45 +16,51 @@ logger = logging.getLogger(__name__)
 
 USE_MOCK = config('USE_MOCK', default='false').lower() == 'true'
 _llm_client = None
+_llm_client_lock = threading.Lock()
 
 # 简易内存缓存（TTL 5 分钟，避免相同笔记重复调用 LLM）
 _CACHE_TTL = 300
 _CACHE_MAX_SIZE = 128
 _cache: dict[str, tuple[float, list[dict]]] = {}
+_cache_lock = asyncio.Lock()
 
 def _cache_key(content: str, count: int) -> str:
     return hashlib.md5(f"{content}_{count}".encode()).hexdigest()
 
-def _cache_get(content: str, count: int) -> list[dict] | None:
+async def _cache_get(content: str, count: int) -> list[dict] | None:
     key = _cache_key(content, count)
-    if key in _cache:
-        ts, data = _cache[key]
-        if time.time() - ts < _CACHE_TTL:
-            logger.info(f"缓存命中，直接返回 {len(data)} 道题目")
-            return data
-        del _cache[key]
+    async with _cache_lock:
+        if key in _cache:
+            ts, data = _cache[key]
+            if time.time() - ts < _CACHE_TTL:
+                logger.info(f"缓存命中，直接返回 {len(data)} 道题目")
+                return data
+            del _cache[key]
     return None
 
-def _cache_set(content: str, count: int, data: list[dict]):
-    if len(_cache) >= _CACHE_MAX_SIZE:
-        oldest_key = min(_cache, key=lambda k: _cache[k][0])
-        del _cache[oldest_key]
-        logger.info("缓存已满，淘汰最旧条目")
-    _cache[_cache_key(content, count)] = (time.time(), data)
+async def _cache_set(content: str, count: int, data: list[dict]):
+    async with _cache_lock:
+        if len(_cache) >= _CACHE_MAX_SIZE:
+            oldest_key = min(_cache, key=lambda k: _cache[k][0])
+            del _cache[oldest_key]
+            logger.info("缓存已满，淘汰最旧条目")
+        _cache[_cache_key(content, count)] = (time.time(), data)
 
 
 
 def _get_llm_client():
     global _llm_client
     if _llm_client is None:
-        _llm_client = ChatOpenAI(
-            model=config('LLM_MODEL', default='deepseek-v4-flash'),
-            api_key=config('LLM_API_KEY'),
-            base_url=config('LLM_BASE_URL', default='https://api.deepseek.com'),
-            temperature=0.4,
-            max_completion_tokens=4000,
-            timeout=config('LLM_TIMEOUT', default=60, cast=int),
-        )
+        with _llm_client_lock:
+            if _llm_client is None:
+                _llm_client = ChatOpenAI(
+                    model=config('LLM_MODEL', default='deepseek-v4-flash'),
+                    api_key=config('LLM_API_KEY'),
+                    base_url=config('LLM_BASE_URL', default='https://api.deepseek.com'),
+                    temperature=0.4,
+                    max_completion_tokens=4000,
+                    timeout=config('LLM_TIMEOUT', default=60, cast=int),
+                )
     return _llm_client
 
 
@@ -64,10 +71,10 @@ def _generate_mock_questions(content: str, count: int) -> List[Dict]:
         mock_questions.append({
             "stem": f"根据笔记内容，第 {i} 道模拟题是什么？",
             "options": [
-                "A: 选项一",
-                "B: 选项二",
-                "C: 选项三",
-                "D: 选项四"
+                "选项一",
+                "选项二",
+                "选项三",
+                "选项四"
             ],
             "answer": "A",
             "explanation": f"这是第 {i} 道模拟题的解析。"
@@ -129,8 +136,8 @@ async def _generate_from_chunk(content: str, count: int, chunk_index: int, total
                 raise RuntimeError(f"Chunk {chunk_index+1} 在 {max_retries} 次尝试后仍无法生成有效题目。")
 
 
-def _deduplicate_questions(questions: list[dict]) -> list[dict]:
-    """简单的题干去重：移除高度相似的题目"""
+def _deduplicate_questions(questions: list[dict], similarity_threshold: float = 0.7) -> list[dict]:
+    """题干去重：移除高度相似的题目，使用 SequenceMatcher 计算相似度"""
     if len(questions) <= 1:
         return questions
     result = []
@@ -142,9 +149,10 @@ def _deduplicate_questions(questions: list[dict]) -> list[dict]:
             if stem in existing_stem or existing_stem in stem:
                 is_dup = True
                 break
-            common = len(set(stem) & set(existing_stem))
-            max_len = max(len(stem), len(existing_stem))
-            if max_len > 0 and common / max_len > 0.8:
+            # 使用 SequenceMatcher 计算整体相似度（比单纯字符集重叠更准确）
+            matcher = difflib.SequenceMatcher(None, stem, existing_stem)
+            ratio = matcher.ratio()
+            if ratio >= similarity_threshold:
                 is_dup = True
                 break
         if not is_dup:
@@ -158,7 +166,7 @@ async def generate_quiz_questions(content: str, count: int) -> List[Dict]:
     if USE_MOCK:
         return _generate_mock_questions(content, count)
 
-    cached = _cache_get(content, count)
+    cached = await _cache_get(content, count)
     if cached is not None:
         return cached
 
@@ -166,7 +174,7 @@ async def generate_quiz_questions(content: str, count: int) -> List[Dict]:
 
     if len(chunks) == 1:
         result = await _generate_from_chunk(chunks[0], count, 0, 1)
-        _cache_set(content, count, result)
+        await _cache_set(content, count, result)
         return result
 
     logger.info(f"笔记过长（{len(content)} 字符），已切分为 {len(chunks)} 块，使用 Map-Reduce 模式生成")
@@ -181,14 +189,22 @@ async def generate_quiz_questions(content: str, count: int) -> List[Dict]:
             continue
         tasks.append(_generate_from_chunk(chunk, chunk_count, i, len(chunks)))
 
-    chunk_results = await asyncio.gather(*tasks)
+    chunk_results = await asyncio.gather(*tasks, return_exceptions=True)
 
     all_questions = []
-    for result_chunk in chunk_results:
+    failed_chunks = 0
+    for i, result_chunk in enumerate(chunk_results):
+        if isinstance(result_chunk, Exception):
+            logger.error(f"Chunk {i} 生成失败（已跳过，不影响其他块）: {result_chunk}")
+            failed_chunks += 1
+            continue
         all_questions.extend(result_chunk)
+
+    if failed_chunks > 0:
+        logger.warning(f"Map-Reduce: {failed_chunks}/{len(chunks)} 个块失败，已跳过")
 
     all_questions = _deduplicate_questions(all_questions)
     result = all_questions[:count]
-    _cache_set(content, count, result)
+    await _cache_set(content, count, result)
     logger.info(f"Map-Reduce 完成，共生成 {len(result)} 道题目（{len(chunks)} 块并发）")
     return result

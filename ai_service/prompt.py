@@ -65,14 +65,16 @@ def build_prompt(content: str, count: int, chunk_index: int = 0, total_chunks: i
 - options 数组中只存选项文本，禁止包含 A. B. C. D. 等前缀标签
 - answer 字段只能是 A、B、C、D 单个字母，表示第几个选项是正确答案
 
-[
-    {{
-        "stem": "题目内容",
-        "options": ["选项内容", "选项内容", "选项内容", "选项内容"],
-        "answer": "A",
-        "explanation": "解析内容"
-    }}
-]
+{{
+    "questions": [
+        {{
+            "stem": "题目内容",
+            "options": ["选项内容", "选项内容", "选项内容", "选项内容"],
+            "answer": "A",
+            "explanation": "解析内容"
+        }}
+    ]
+}}
 
 <note_content>
 {content}

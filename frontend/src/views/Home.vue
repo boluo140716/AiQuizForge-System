@@ -160,7 +160,7 @@ const handleDelete = async (id) => {
     await store.removeNotebook(id)
     ElMessage.success('笔记本已删除')
     if (wasCurrent) {
-      router.push('/')
+      router.push('/notes')
     }
   } catch {
     ElMessage.error('删除失败')

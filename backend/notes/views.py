@@ -1,3 +1,4 @@
+import uuid
 from rest_framework import viewsets,permissions,filters,status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -86,9 +87,9 @@ class QuizViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         question_count = serializer.validated_data['question_count']
         #检查笔记内容是否足够长
-        if not note.content_plain or len(note.content_plain) < 20:
+        if not note.content_plain or len(note.content_plain) < 50:
             return Response(
-                {'detail': '笔记内容太短，至少需要20个字符才能生成测验'},
+                {'detail': '笔记内容太短，至少需要50个字符才能生成测验'},
                 status=status.HTTP_400_BAD_REQUEST
             )
          # 创建 Quiz 记录
@@ -98,8 +99,11 @@ class QuizViewSet(viewsets.GenericViewSet):
             question_count=question_count,
             status='processing'
         )
+        # 生成追踪 ID，用于关联 Django → Celery → FastAPI 调用链
+        trace_id = str(uuid.uuid4())[:8]
+
         # 提交异步任务
-        task = generate_quiz.delay(quiz.id)
+        task = generate_quiz.delay(quiz.id, trace_id=trace_id)
         quiz.celery_task_id = task.id
         quiz.save(update_fields=['celery_task_id'])
 
@@ -178,7 +182,7 @@ class QuizViewSet(viewsets.GenericViewSet):
             return Response({'detail': '测验尚未生成完毕'}, status=status.HTTP_400_BAD_REQUEST)
 
         questions = quiz.questions.all()
-        serializer = QuestionWithAnswerSerializer(questions, many=True)
+        serializer = QuestionSerializer(questions, many=True)
         return Response(serializer.data)
     
     @action(detail=True, methods=['post'], url_path='attempt')
@@ -334,7 +338,7 @@ class WrongQuestionViewSet(viewsets.GenericViewSet):
         #可选筛选，按标签
         tag=request.query_params.get('tag')
         if tag:
-            queryset=queryset.filter(quiz__note__tags__contains=tag)
+            queryset=queryset.filter(quiz__note__tags__has_key=tag)
 
         #按最后错误时间排序
         queryset=queryset.order_by('-last_wrong_at')
@@ -367,7 +371,7 @@ class WrongQuestionViewSet(viewsets.GenericViewSet):
         #可选筛选，按标签
         tag=request.data.get('tag')
         if tag:
-            queryset=queryset.filter(quiz__note__tags__contains=tag)
+            queryset=queryset.filter(quiz__note__tags__has_key=tag)
 
         #按错误次数降序排序
         queryset=queryset.order_by('-wrong_count')
@@ -376,11 +380,8 @@ class WrongQuestionViewSet(viewsets.GenericViewSet):
         if not question_ids:
             return Response({'detail': '错题本为空'}, status=status.HTTP_404_NOT_FOUND)
         # 创建一个临时测验记录
-        first_wrong = WrongQuestion.objects.filter(
-            user=request.user, question_id__in=question_ids
-        ).first()
         temp_quiz = Quiz.objects.create(
-            note=first_wrong.quiz.note,
+            note=None,
             user=request.user,
             question_count=len(question_ids),
             status='completed'

@@ -1,41 +1,7 @@
 <template>
   <div class="note-list-page">
-    <!-- 顶部导航栏 -->
     <div class="page-header">
-      <div class="header-left">
-        <h2>我的笔记</h2>
-      </div>
-      <div class="header-right">
-        <el-dropdown trigger="click" @command="handleCommand">
-          <div class="user-info">
-            <el-avatar :size="36" :src="userInfo.avatar" class="user-avatar">
-              {{ userInfo?.username?.charAt(0)?.toUpperCase() || 'U' }}
-            </el-avatar>
-            <span class="username">{{ userInfo?.display_name || userInfo?.username || '用户' }}</span>
-            <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
-          </div>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="profile">
-                <el-icon><User /></el-icon>
-                个人主页
-              </el-dropdown-item>
-              <el-dropdown-item command="quizHistory">
-                <el-icon><List /></el-icon>
-                答题历史
-              </el-dropdown-item>
-              <el-dropdown-item command="wrong">
-                <el-icon><Warning /></el-icon>
-                错题本
-              </el-dropdown-item>
-              <el-dropdown-item divided command="logout">
-                <el-icon><SwitchButton /></el-icon>
-                退出登录
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-      </div>
+      <h2>我的笔记</h2>
     </div>
 
     <!-- 工具栏 -->
@@ -148,13 +114,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown, User, SwitchButton, Plus, Search, MoreFilled, Warning, List } from '@element-plus/icons-vue'
-import axios from 'axios'
+import { Plus, Search, MoreFilled } from '@element-plus/icons-vue'
 import { useNotebookStore } from '@/stores/notebook'
-import { getNotes, deleteNote, getNotebooks, getCurrentUser } from '@/api'
+import { getNotes, deleteNote, getNotebooks } from '@/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -167,17 +132,6 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = 12
 const searchKeyword = ref('')
-const userInfo = reactive({})
-
-// 获取用户信息
-const fetchUserInfo = async () => {
-  try {
-    const res = await getCurrentUser()
-    Object.assign(userInfo, res.data)
-  } catch (e) {
-    console.error('获取用户信息失败', e)
-  }
-}
 
 // 获取笔记本列表
 const fetchNotebooks = async () => {
@@ -248,31 +202,7 @@ const handleNoteCommand = async (cmd, note) => {
   }
 }
 
-// 用户菜单操作
-const handleCommand = async (cmd) => {
-  if (cmd === 'profile') {
-    router.push('/profile')
-  } else if (cmd === 'wrong') {
-    router.push('/wrong-questions')
-  } else if (cmd === 'quizHistory') {
-    router.push('/quiz-history')
-  } else if (cmd === 'logout') {
-    try {
-      await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
-        confirmButtonText: '确定', cancelButtonText: '取消', type: 'info'
-      })
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
-      delete axios.defaults.headers.common['Authorization']
-      router.push('/login')
-    } catch (e) {
-      // 用户取消退出
-    }
-  }
-}
-
 onMounted(() => {
-  fetchUserInfo()
   fetchNotebooks()
   fetchNotes()
 })

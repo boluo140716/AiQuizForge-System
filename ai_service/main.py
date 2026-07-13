@@ -1,7 +1,8 @@
 import logging
 import time
 from collections import defaultdict
-from fastapi import FastAPI, Depends, HTTPException, Security, Request
+from fastapi import FastAPI, Depends, HTTPException, Security, Request, APIRouter
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from decouple import config
 from schemas import QuizRequest, QuizResponse, QuestionItem
@@ -27,6 +28,22 @@ app = FastAPI(
     version="0.1.0"
 )
 
+# CORS 配置：允许跨域访问
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config(
+        'CORS_ORIGINS',
+        default='*',
+        cast=lambda v: [s.strip() for s in v.split(',')]
+    ),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+INTERNAL_IPS = {"127.0.0.1", "::1", "localhost"}
+
 
 @app.middleware("http")
 async def rate_limit_and_monitor(request: Request, call_next):
@@ -36,21 +53,28 @@ async def rate_limit_and_monitor(request: Request, call_next):
     client_ip = request.client.host if request.client else "unknown"
     now = time.time()
 
-    _rate_records[client_ip] = [
-        t for t in _rate_records[client_ip] if now - t < _RATE_WINDOW
-    ]
+    # 内部服务调用（Django→FastAPI）不触发限流
+    is_internal = client_ip in INTERNAL_IPS
 
-    if len(_rate_records[client_ip]) >= _RATE_MAX:
-        raise HTTPException(status_code=429, detail="请求过于频繁，请稍后重试")
+    if not is_internal:
+        _rate_records[client_ip] = [
+            t for t in _rate_records[client_ip] if now - t < _RATE_WINDOW
+        ]
+        if not _rate_records[client_ip]:
+            del _rate_records[client_ip]
 
-    _rate_records[client_ip].append(now)
+        if len(_rate_records[client_ip]) >= _RATE_MAX:
+            raise HTTPException(status_code=429, detail="请求过于频繁，请稍后重试")
+
+        _rate_records[client_ip].append(now)
 
     start = time.time()
     response = await call_next(request)
     elapsed = time.time() - start
 
     logger.info(
-        f"IP={client_ip} | {request.method} {request.url.path} | "
+        f"IP={client_ip} | {'内部' if is_internal else '外部'} | "
+        f"{request.method} {request.url.path} | "
         f"状态={response.status_code} | 耗时={elapsed:.2f}s"
     )
     return response
@@ -78,7 +102,10 @@ async def health_check():
     return {"status": "ok", "service": "QuizForge AI Service", "version": "0.1.0"}
 
 
-@app.post("/ai/generate-quiz", response_model=QuizResponse)
+router = APIRouter(prefix="/api/v1")
+
+
+@router.post("/ai/generate-quiz", response_model=QuizResponse)
 async def generate_quiz(
     req: QuizRequest,
     token: str = Depends(verify_token)
@@ -94,3 +121,6 @@ async def generate_quiz(
     questions = [QuestionItem(**q) for q in questions_data]
 
     return QuizResponse(questions=questions)
+
+
+app.include_router(router)

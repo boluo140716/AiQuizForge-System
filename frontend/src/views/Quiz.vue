@@ -114,13 +114,13 @@
             <div class="review-options">
               <div v-for="(opt, oi) in item.options" :key="oi" class="review-option"
                 :class="{
-                  correct: item.correct === opt,
-                  wrong: item.selected === opt && !item.is_right
+                  correct: item.correct === optionLetters[oi],
+                  wrong: item.selected === optionLetters[oi] && !item.is_right
                 }"
               >
                 {{ optionLetters[oi] }}. {{ opt }}
-                <el-icon v-if="item.correct === opt"><Check /></el-icon>
-                <el-icon v-else-if="item.selected === opt && !item.is_right"><Close /></el-icon>
+                <el-icon v-if="item.correct === optionLetters[oi]"><Check /></el-icon>
+                <el-icon v-else-if="item.selected === optionLetters[oi] && !item.is_right"><Close /></el-icon>
               </div>
             </div>
             <div v-if="!item.is_right && item.explanation" class="review-explanation">
