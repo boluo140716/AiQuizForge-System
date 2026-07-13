@@ -62,15 +62,15 @@
             <div
               v-for="(opt, oi) in q.options"
               :key="oi"
-              :class="['q-option', {
-                correct: q.answer === opt,
-                wrong: lastAnswerFor(q.id)?.selected === opt && !lastAnswerFor(q.id)?.is_right
-              }]"
-            >
-              <div class="opt-badge">{{ optionLetters[oi] }}</div>
-              <span class="opt-text">{{ opt }}</span>
-              <el-icon v-if="q.answer === opt" class="opt-icon right"><CircleCheck /></el-icon>
-              <el-icon v-else-if="lastAnswerFor(q.id)?.selected === opt" class="opt-icon wrong"><CircleClose /></el-icon>
+            :class="['q-option', {
+              correct: q.answer === optionLetters[oi],
+              wrong: lastAnswerFor(q.id)?.selected === optionLetters[oi] && !lastAnswerFor(q.id)?.is_right
+            }]"
+          >
+            <div class="opt-badge">{{ optionLetters[oi] }}</div>
+            <span class="opt-text">{{ opt }}</span>
+            <el-icon v-if="q.answer === optionLetters[oi]" class="opt-icon right"><CircleCheck /></el-icon>
+            <el-icon v-else-if="lastAnswerFor(q.id)?.selected === optionLetters[oi]" class="opt-icon wrong"><CircleClose /></el-icon>
             </div>
           </div>
 

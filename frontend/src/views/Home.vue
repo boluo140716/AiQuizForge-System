@@ -10,6 +10,9 @@
         :default-active="String(store.currentNotebookId)"
         @select="handleSelect"
       >
+        <el-menu-item index="">
+          <span>全部笔记</span>
+        </el-menu-item>
         <el-menu-item
           v-for="nb in validNotebooks"
           :key="nb.id"
@@ -144,14 +147,19 @@ const handleAdd = async () => {
     dialogVisible.value = false
     await store.fetchNotebooks()
     ElMessage.success('笔记本已创建')
-  } catch (e) {
-    ElMessage.error('创建失败，请检查后端日志')
-  }
+    } catch (e) {
+      ElMessage.error('创建失败，请稍后重试')
+    }
 }
 
 const handleSelect = (id) => {
-  store.setCurrentNotebook(Number(id))
-  router.push(`/notes?notebook=${id}`)
+  if (id === '') {
+    store.setCurrentNotebook(null)
+    router.push('/notes')
+  } else {
+    store.setCurrentNotebook(Number(id))
+    router.push(`/notes?notebook=${id}`)
+  }
 }
 
 const handleDelete = async (id) => {
@@ -386,7 +394,7 @@ const handleCommand = async (cmd) => {
   .sidebar {
     width: 100%;
     height: auto;
-    max-height: 40vh;
+    max-height: 25vh;
     overflow-y: auto;
     padding: 16px;
     border-right: none;

@@ -34,6 +34,7 @@
                 v-model="nameEditValue"
                 ref="nameInputRef"
                 maxlength="50"
+                :disabled="nameSaving"
                 class="name-edit-input"
                 @keyup.enter="saveDisplayName"
                 @blur="saveDisplayName"

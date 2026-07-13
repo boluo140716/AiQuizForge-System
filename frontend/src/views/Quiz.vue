@@ -74,6 +74,13 @@
       </div>
     </div>
 
+    <!-- 空状态（题目加载完成但没有题目） -->
+    <div v-else-if="showEmptyState" class="empty-wrap">
+      <el-empty description="没有可作答的题目，请返回重试">
+        <el-button type="primary" @click="router.back()">返回</el-button>
+      </el-empty>
+    </div>
+
     <!-- 提交中 -->
     <div v-else-if="submitting" class="submitting-wrap">
       <el-icon class="is-loading"><Loading /></el-icon>
@@ -140,9 +147,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeRouteLeave } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, ArrowRight, Loading, Check, Close, InfoFilled
 } from '@element-plus/icons-vue'
@@ -192,12 +199,15 @@ const fetchQuestions = async () => {
       selectedAnswers.value[q.id] = null
     })
   } catch (e) {
-    ElMessage.error('获取题目失败')
-    router.back()
+    ElMessage.error('获取题目失败，请稍后重试')
+    setTimeout(() => router.back(), 1500)
   } finally {
     loading.value = false
   }
 }
+
+// 题目加载完成后展示空状态（后端可能没有题目，或格式不匹配）
+const showEmptyState = computed(() => !loading.value && !submitted.value && questions.value.length === 0)
 
 const selectAnswer = (questionId, option) => {
   selectedAnswers.value[questionId] = option
@@ -256,6 +266,18 @@ const retryQuiz = () => {
 }
 
 onMounted(fetchQuestions)
+
+onBeforeRouteLeave((to, from, next) => {
+  if (!submitted.value && Object.keys(selectedAnswers.value).some(k => selectedAnswers.value[k] != null)) {
+    ElMessageBox.confirm('你有未提交的答案，确定要离开吗？', '提示', {
+      confirmButtonText: '离开',
+      cancelButtonText: '继续答题',
+      type: 'warning'
+    }).then(() => next()).catch(() => next(false))
+  } else {
+    next()
+  }
+})
 </script>
 
 <style scoped>

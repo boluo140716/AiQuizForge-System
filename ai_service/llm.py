@@ -22,14 +22,20 @@ _llm_client_lock = threading.Lock()
 _CACHE_TTL = 300
 _CACHE_MAX_SIZE = 128
 _cache: dict[str, tuple[float, list[dict]]] = {}
-_cache_lock = asyncio.Lock()
+_cache_lock = None
 
 def _cache_key(content: str, count: int) -> str:
     return hashlib.md5(f"{content}_{count}".encode()).hexdigest()
 
+def _get_cache_lock():
+    global _cache_lock
+    if _cache_lock is None:
+        _cache_lock = asyncio.Lock()
+    return _cache_lock
+
 async def _cache_get(content: str, count: int) -> list[dict] | None:
     key = _cache_key(content, count)
-    async with _cache_lock:
+    async with _get_cache_lock():
         if key in _cache:
             ts, data = _cache[key]
             if time.time() - ts < _CACHE_TTL:
@@ -39,7 +45,7 @@ async def _cache_get(content: str, count: int) -> list[dict] | None:
     return None
 
 async def _cache_set(content: str, count: int, data: list[dict]):
-    async with _cache_lock:
+    async with _get_cache_lock():
         if len(_cache) >= _CACHE_MAX_SIZE:
             oldest_key = min(_cache, key=lambda k: _cache[k][0])
             del _cache[oldest_key]

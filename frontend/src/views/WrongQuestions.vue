@@ -294,7 +294,7 @@ const handleRePractice = async () => {
 
     const practiceQuizId = res.data.practice_quiz_id
     ElMessage.success('即将开始错题重练')
-    router.push(`/quiz/${practiceQuizId}`)
+    router.push('/quiz/' + practiceQuizId)
   } catch (e) {
     if (e.response?.status === 404) {
       ElMessage.warning('错题本为空')

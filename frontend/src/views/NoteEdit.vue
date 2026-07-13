@@ -46,12 +46,12 @@
             <el-input
               v-model="tagInput"
               size="large"
-              placeholder=""
+              placeholder="用逗号分隔，如：Python, Django, 后端"
             />
           </el-form-item>
 
           <div v-if="isEdit" class="quiz-action">
-            <el-button type="warning" :loading="generating" @click="handleGenerateQuiz" size="large">
+            <el-button type="warning" :loading="generating" @click="showQuizCountDialog = true" size="large">
               <el-icon><MagicStick /></el-icon>
               生成测验
             </el-button>
@@ -68,6 +68,26 @@
         </el-form>
       </el-card>
     </div>
+
+    <!-- 题目数量选择对话框 -->
+    <el-dialog v-model="showQuizCountDialog" title="生成测验" width="360px" @closed="onQuizCountDialogClosed">
+      <el-form label-position="top">
+        <el-form-item label="题目数量">
+          <el-slider
+            v-model="quizCountToGenerate"
+            :min="1"
+            :max="10"
+            :step="1"
+            show-stops
+            :marks="{ 1: '1', 5: '5', 10: '10' }"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showQuizCountDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleGenerateQuiz">开始生成</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -100,6 +120,27 @@ const deleting = ref(false)
 const generating = ref(false)
 const currentQuizId = ref(null)
 const contentLength = ref(0)
+const showQuizCountDialog = ref(false)
+const quizCountToGenerate = ref(5)
+let pendingQuizGeneration = false
+
+const onQuizCountDialogClosed = async () => {
+  if (!pendingQuizGeneration) return
+  pendingQuizGeneration = false
+  try {
+    await ElMessageBox.confirm('是否以此笔记内容生成测验？', '生成测验', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+    await doGenerateQuiz()
+  } catch (err) {
+    if (err !== 'cancel' && err !== 'close') {
+      ElMessage.error(err?.response?.data?.detail || '生成失败')
+    }
+    generating.value = false
+  }
+}
 
 const updateContentLength = () => {
   if (editor) {
@@ -187,15 +228,14 @@ const handleDelete = async () => {
 }
 
 const handleGenerateQuiz = async () => {
-  try {
-    await ElMessageBox.confirm('是否以此笔记内容生成测验？', '生成测验', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'info'
-    })
+  pendingQuizGeneration = true
+  showQuizCountDialog.value = false
+}
 
+const doGenerateQuiz = async () => {
+  try{
     generating.value = true
-    const res = await generateQuiz(route.params.id, 5)
+    const res = await generateQuiz(route.params.id, quizCountToGenerate.value)
     currentQuizId.value = res.data.quiz_id
 
     ElMessage.success('测验生成中，请稍候...')
@@ -210,29 +250,32 @@ const handleGenerateQuiz = async () => {
         const quiz = statusRes.data
 
         if (quiz.status === 'completed') {
-          generating.value = false
-          ElMessage.success('测验生成完成！')
-          router.push(`/quiz/${currentQuizId.value}`)
+          ElMessage.success('测验生成完成！正在跳转...')
+          router.push('/quiz/' + currentQuizId.value)
+            .catch(err => ElMessage.error('跳转失败：' + (err.message || '路由错误')))
+          return
         } else if (quiz.status === 'failed') {
-          generating.value = false
           ElMessage.error('测验生成失败：' + (quiz.error_message || '未知错误'))
         } else if (pollCount >= MAX_POLL) {
-          generating.value = false
-          ElMessage.error('测验生成超时，请检查后重试')
+          ElMessage.error('测验生成超时，请刷新页面重试')
         } else {
           setTimeout(pollStatus, 2000)
+          return
         }
       } catch (e) {
-        generating.value = false
-        ElMessage.error('检查生成状态失败')
+        // 网络错误：重试而不是直接停止（避免 Celery 慢导致失败）
+        if (pollCount < MAX_POLL) {
+          setTimeout(pollStatus, 2000)
+          return
+        }
+        ElMessage.error('检查生成状态失败:'+(e.response?.data?.detail || e.message || '网络错误'))
       }
+      generating.value = false
     }
 
     setTimeout(pollStatus, 2000)
   } catch (err) {
-    if (err !== 'cancel') {
-      ElMessage.error(err.response?.data?.detail || '生成失败')
-    }
+    ElMessage.error('生成测验失败:'+(err.response?.data?.detail || err.message || '网络错误'))
     generating.value = false
   }
 }
@@ -327,13 +370,6 @@ const handleGenerateQuiz = async () => {
   font-weight: 400;
   color: #86868b;
   margin-left: 8px;
-}
-
-.content-count {
-  margin-top: 8px;
-  font-size: 13px;
-  color: #86868b;
-  text-align: right;
 }
 
 .content-count {

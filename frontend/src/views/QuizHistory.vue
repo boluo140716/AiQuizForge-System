@@ -102,7 +102,7 @@
                 v-if="item.status === 'completed'"
                 type="primary"
                 size="small"
-                @click="$router.push(`/quiz/${item.id}`)"
+                @click="$router.push('/quiz/' + item.id)"
               >
                 <el-icon><Pointer /></el-icon>
                 {{ item.attempt_count > 0 ? '再次答题' : '开始答题' }}
@@ -110,7 +110,7 @@
               <el-button
                 v-if="item.status === 'completed' && item.attempt_count > 0"
                 size="small"
-                @click="$router.push(`/quiz/${item.id}/review`)"
+                @click="$router.push('/quiz/' + item.id + '/review')"
               >
                 <el-icon><View /></el-icon>
                 查看回顾
