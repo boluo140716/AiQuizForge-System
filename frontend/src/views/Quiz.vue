@@ -147,8 +147,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeRouteLeave } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, ArrowRight, Loading, Check, Close, InfoFilled
