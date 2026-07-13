@@ -60,11 +60,14 @@ AiQuizForge-System/
 - [Docker](https://www.docker.com/products/docker-desktop/) + Docker Compose V2
 
 ### 启动
-
 ```bash
+# 1. 克隆项目到本地（替换为你的真实仓库地址）
+git clone https://github.com/boluo140716/AiQuizForge-System.git
+
+# 2. 进入项目目录
 cd AiQuizForge-System
 
-# 启动所有服务（首次启动会自动构建镜像，约 3-5 分钟）
+# 3. 启动所有服务（首次启动会自动构建镜像，约 3-5 分钟）
 docker compose up -d
 
 # 查看启动日志
