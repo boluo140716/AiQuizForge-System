@@ -15,6 +15,15 @@ AI 驱动的笔记管理与测验生成平台。用户创建笔记本，使用 M
 | 认证 | SimpleJWT（JWT 双 Token 机制） |
 | 容器化 | Docker + Docker Compose |
 
+## 项目页面
+<img width="130" height="110" alt="image" src="https://github.com/user-attachments/assets/820f3c60-365e-4a74-a5e2-89b599081beb" />
+<img width="130" height="110" alt="image" src="https://github.com/user-attachments/assets/29c974ce-1df6-4ca4-9f31-b07281aa085a" />
+<img width="130" height="110" alt="image" src="https://github.com/user-attachments/assets/a9222bf9-70b9-4999-ae68-5a3229645d00" />
+<img width="130" height="110" alt="image" src="https://github.com/user-attachments/assets/bf5a5e63-4f6f-488d-add9-6587a0f6ade5" />
+<img width="130" height="110" alt="image" src="https://github.com/user-attachments/assets/d1d18fcc-4184-4e2a-9483-a2f1effb9e02" />
+<img width="130" height="110" alt="image" src="https://github.com/user-attachments/assets/6e8e8067-5baa-417d-b36f-2b2c7935ff51" />
+<img width="130" height="110" alt="image" src="https://github.com/user-attachments/assets/0d0faefe-e5b9-461f-9d8e-2a1ae1ac4083" />
+
 ## 项目结构
 
 ```
