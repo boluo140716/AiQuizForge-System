@@ -1,28 +1,84 @@
+import re
+
 MAX_CONTENT_LENGTH = 12000
-CHUNK_SIZE = 3000
+CHUNK_SIZE = 3000          # 单块上限
+CHUNK_TARGET = 2000        # 目标块大小
+CHUNK_OVERLAP = 200        # 块间重叠，避免跨块知识点被截断
+
+_HEADING_RE = re.compile(r'^\s{0,3}#{1,6}\s+')
+_SENTENCE_END = re.compile(r'(?<=[。！？；.!?;])')
 
 
-def split_content(content: str, chunk_size: int = CHUNK_SIZE) -> list[str]:
-    """将长文本按段落边界切分为多个块，避免在句子中间截断"""
+def _split_long_paragraph(text: str, max_len: int) -> list[str]:
+    """把超长段落按句子边界切开，避免在句子中间截断。"""
+    sentences = [s for s in _SENTENCE_END.split(text) if s]
+    chunks, current = [], ""
+    for sentence in sentences:
+        if len(current) + len(sentence) > max_len and current:
+            chunks.append(current)
+            current = sentence
+        else:
+            current += sentence
+    if current:
+        chunks.append(current)
+    return chunks or [text]
+
+
+def split_content(
+    content: str,
+    chunk_size: int = CHUNK_SIZE,
+    target: int = CHUNK_TARGET,
+    overlap: int = CHUNK_OVERLAP,
+) -> list[str]:
+    """按 Markdown 标题/段落做语义分块，块间保留少量重叠。
+
+    相比"每 3000 字硬切"，这样能：
+    1) 尽量在标题/段落边界处断开，保持知识点完整；
+    2) 超长段落按句子边界切，不在句子中间截断；
+    3) 相邻块保留 overlap 字符，避免跨块的知识点被切断。
+    """
+    content = (content or "").strip()
+    if not content:
+        return []
     if len(content) <= chunk_size:
         return [content]
 
-    paragraphs = content.split('\n')
-    chunks = []
-    current_chunk = ""
-
-    for para in paragraphs:
-        if len(current_chunk) + len(para) > chunk_size and current_chunk:
-            chunks.append(current_chunk.strip())
-            current_chunk = para
+    # 1) 逐行收集，标题前加空行，形成天然语义边界
+    units: list[str] = []
+    for line in content.splitlines():
+        line = line.rstrip()
+        if not line:
+            continue
+        if _HEADING_RE.match(line) and units:
+            units.append("\n\n" + line)
         else:
-            if current_chunk:
-                current_chunk += '\n' + para
-            else:
-                current_chunk = para
+            units.append(line)
 
-    if current_chunk.strip():
-        chunks.append(current_chunk.strip())
+    # 2) 超长行按句子边界再切
+    expanded: list[str] = []
+    for unit in units:
+        if len(unit) > chunk_size:
+            expanded.extend(_split_long_paragraph(unit, target))
+        else:
+            expanded.append(unit)
+
+    # 3) 合并为目标大小的块，相邻块保留重叠
+    chunks: list[str] = []
+    current = ""
+    for unit in expanded:
+        separator = "\n" if current else ""
+        if len(current) + len(separator) + len(unit) > target and current:
+            # 当前块太短（比如只有一行标题）时，跟这个 unit 合并，避免标题单独成块
+            if len(current) < 100:
+                current = (current + separator + unit).strip()
+                continue
+            chunks.append(current.strip())
+            tail = current[-overlap:] if overlap > 0 else ""
+            current = (tail + "\n" + unit).strip()
+        else:
+            current = (current + separator + unit).strip()
+    if current.strip():
+        chunks.append(current.strip())
 
     return chunks
 
@@ -72,12 +128,27 @@ def _build_example() -> str:
 请基于以上示例的风格，为下方笔记内容生成题目。"""
 
 
-def build_prompt(content: str, count: int, chunk_index: int = 0, total_chunks: int = 1) -> str:
+def build_prompt(
+    content: str,
+    count: int,
+    chunk_index: int = 0,
+    total_chunks: int = 1,
+    knowledge_points: list[str] | None = None,
+) -> str:
     chunk_hint = ""
     if total_chunks > 1:
         chunk_hint = f"\n注意：这是笔记的第 {chunk_index + 1}/{total_chunks} 部分，请仅基于本部分内容出题，不要与其他部分重复。\n"
 
-    return f"""你是一个专业的出题助手。请根据以下笔记内容，生成 {count} 道单项选择题。{chunk_hint}
+    kp_hint = ""
+    if knowledge_points:
+        kp_list = "、".join(knowledge_points)
+        kp_hint = (
+            f"\n## 知识点标注\n"
+            f"本题库包含以下知识点：{kp_list}。\n"
+            f"请为每道题标注它考察的知识点，写入 kp 字段；优先使用上面列表中的名称。\n"
+        )
+
+    return f"""你是一个专业的出题助手。请根据以下笔记内容，生成 {count} 道单项选择题。{chunk_hint}{kp_hint}
 
 ## 出题原则
 
@@ -111,6 +182,7 @@ def build_prompt(content: str, count: int, chunk_index: int = 0, total_chunks: i
 - 严格按以下 JSON 格式输出，不要包含任何其他内容（不要用 markdown 代码块包裹，直接输出纯 JSON）
 - options 数组中只存选项文本，禁止包含 A. B. C. D. 等前缀标签
 - answer 字段只能是 A、B、C、D 单个字母，表示第几个选项是正确答案
+- kp 字段填写该题考察的知识点名称
 
 {{
     "questions": [
@@ -118,9 +190,32 @@ def build_prompt(content: str, count: int, chunk_index: int = 0, total_chunks: i
             "stem": "题目内容",
             "options": ["选项内容", "选项内容", "选项内容", "选项内容"],
             "answer": "A",
-            "explanation": "解析内容"
+            "explanation": "解析内容",
+            "kp": "该题考察的知识点"
         }}
     ]
+}}
+
+<note_content>
+{content}
+</note_content>"""
+
+
+def build_kp_prompt(content: str, max_points: int = 8) -> str:
+    return f"""你是一个知识点抽取助手。请从下面的笔记中抽取最多 {max_points} 个核心知识点。
+
+## 要求
+- 每个知识点是一个可以独立考察的概念、原理或技能
+- name 简短（不超过 20 字），不要带编号
+- description 用一句话说明该知识点
+- 去重，不要把同一个知识点拆成多条
+- 只输出 JSON，不要输出任何其他内容
+
+## 输出格式
+{{
+  "knowledge_points": [
+    {{"name": "知识点名称", "description": "一句话说明"}}
+  ]
 }}
 
 <note_content>

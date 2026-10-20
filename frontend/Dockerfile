@@ -4,8 +4,9 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # 安装依赖（利用 Docker 层缓存）
-COPY package.json ./
-RUN npm install
+# 必须同时复制 package-lock.json，否则 npm 会忽略锁文件重新解析，容易触发依赖解析 bug
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
 # 复制源码并构建
 COPY . .

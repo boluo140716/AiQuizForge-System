@@ -7,7 +7,7 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: quizforge_db
     ports:
-      - "3306:3306"
+      - "3307:3306"   # 宿主机 3306 可能被本地 MySQL 占用，故映射到 3307；容器间仍用 db:3306
     volumes:
       - mysql_data:/var/lib/mysql
     restart: unless-stopped
@@ -64,6 +64,7 @@ services:
   # ========== Celery 异步任务 Worker ==========
   celery-worker:
     build: ./backend
+    image: aiquizforge-system-backend
     container_name: quizforge-celery
     command: celery -A config worker -l info
     environment:
@@ -87,14 +88,45 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ========== Celery Beat 定时任务（看门狗）==========
+  celery-beat:
+    build: ./backend
+    image: aiquizforge-system-backend
+    container_name: quizforge-beat
+    command: celery -A config beat -l info
+    environment:
+      - SECRET_KEY=django-insecure-docker-change-in-production
+      - DB_NAME=quizforge_db
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - DB_HOST=db
+      - DB_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=123456
+      - AI_SERVICE_URL=http://ai-service:8001
+      - AI_SERVICE_TOKEN=quizforge-internal-secret-token-2026
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ========== FastAPI AI 微服务 ==========
   ai-service:
     build: ./ai_service
     container_name: quizforge-ai
     env_file:
       - ./ai_service/.env
+    environment:
+      # 容器内访问 Redis（带密码，db 2；与 Django 的 db0/db1 隔离）
+      - REDIS_URL=redis://:123456@redis:6379/2
     ports:
       - "8001:8001"
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   #========== Vue3 前端 (Nginx) ==========
@@ -108,7 +140,40 @@ services:
       - ai-service
     restart: unless-stopped
 
+  # ========== Prometheus + Grafana（可选，--profile monitoring 启动）==========
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: quizforge-prometheus
+    profiles: ["monitoring"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: quizforge-grafana
+    profiles: ["monitoring"]
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   mysql_data:
   redis_data:
   media_data:
+  prometheus_data:
+  grafana_data:

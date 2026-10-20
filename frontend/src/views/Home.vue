@@ -2,8 +2,14 @@
   <div class="home-container">
     <!-- 侧边栏：笔记本 -->
     <aside class="sidebar">
-      <h3>我的笔记本</h3>
-      <el-button type="primary" @click="showAddDialog" style="width:100%; margin-bottom:12px">
+      <div class="brand">
+        <span class="brand-mark">QF</span>
+        <div class="brand-copy">
+          <p class="brand-name">QuizForge</p>
+        </div>
+      </div>
+      <p class="rail-label">笔记本</p>
+      <el-button class="rail-add" type="primary" @click="showAddDialog">
         + 新建笔记本
       </el-button>
       <el-menu
@@ -36,9 +42,12 @@
     </aside>
 
     <!-- 主内容区 -->
-    <main class="main-content">
-      <!-- 顶部用户入口 -->
-      <div class="header-right">
+    <main class="main-content qf-canvas">
+      <div class="workspace-bar">
+        <div class="workspace-meta">
+          <span class="workspace-dot"></span>
+          <span class="workspace-text">学习工作空间</span>
+        </div>
         <el-dropdown trigger="click" @command="handleCommand">
           <div class="user-info">
             <el-avatar :size="36" :src="userAvatar" class="user-avatar">
@@ -52,6 +61,10 @@
               <el-dropdown-item command="profile">
                 <el-icon><User /></el-icon>
                 个人主页
+              </el-dropdown-item>
+              <el-dropdown-item command="learning">
+                <el-icon><TrendCharts /></el-icon>
+                学习分析
               </el-dropdown-item>
               <el-dropdown-item command="quizHistory">
                 <el-icon><List /></el-icon>
@@ -88,7 +101,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useNotebookStore } from '@/stores/notebook'
-import { Delete, User, ArrowDown, SwitchButton, List, Warning } from '@element-plus/icons-vue'
+import { Delete, User, ArrowDown, SwitchButton, List, Warning, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getCurrentUser } from '@/api'
 import axios from 'axios'
@@ -179,6 +192,8 @@ const handleDelete = async (id) => {
 const handleCommand = async (cmd) => {
   if (cmd === 'profile') {
     router.push('/profile')
+  } else if (cmd === 'learning') {
+    router.push('/learning')
   } else if (cmd === 'quizHistory') {
     router.push('/quiz-history')
   } else if (cmd === 'wrong') {
@@ -419,6 +434,233 @@ const handleCommand = async (cmd) => {
   :deep(.el-dialog) {
     width: 92vw !important;
     max-width: 500px !important;
+  }
+}
+</style>
+
+<style scoped>
+/* ===== Index-card study desk ===== */
+.home-container {
+  display: flex;
+  height: 100vh;
+  background: var(--qf-paper);
+}
+
+.sidebar {
+  width: 256px;
+  height: 100vh;
+  padding: 22px 18px;
+  overflow-y: auto;
+  background: #f7f9f6;
+  border-right: 1px solid var(--qf-line);
+  box-shadow: none;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--qf-line);
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  background: var(--qf-ink);
+  color: var(--qf-paper);
+  font-family: var(--qf-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.brand-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--qf-ink);
+}
+
+.brand-sub {
+  margin: 2px 0 0;
+  font-family: var(--qf-mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--qf-muted);
+}
+
+.rail-label {
+  margin: 0 0 10px;
+  font-family: var(--qf-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--qf-muted);
+}
+
+.rail-add {
+  width: 100%;
+  margin-bottom: 12px;
+  justify-content: flex-start;
+}
+
+.sidebar :deep(.el-menu) {
+  background: transparent;
+  border: none;
+}
+
+.sidebar :deep(.el-menu-item) {
+  height: 42px;
+  line-height: 42px;
+  margin-bottom: 2px;
+  padding: 0 10px !important;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  color: var(--qf-ink-soft);
+  font-size: 13px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.sidebar :deep(.el-menu-item:hover) {
+  background: var(--qf-primary-soft);
+  color: var(--qf-primary);
+}
+
+.sidebar :deep(.el-menu-item.is-active) {
+  background: var(--qf-primary-soft);
+  border-left-color: var(--qf-primary);
+  color: var(--qf-primary);
+  font-weight: 700;
+}
+
+.sidebar :deep(.el-menu-item .el-tag) {
+  margin-left: auto;
+  margin-right: 6px;
+}
+
+.sidebar :deep(.el-button.is-circle) {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sidebar :deep(.el-menu-item:hover .el-button.is-circle) {
+  opacity: 1;
+}
+
+.rail-empty {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--qf-muted);
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  padding: 0 40px 48px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.workspace-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 62px;
+  margin: 0 -40px 28px;
+  padding: 0 40px;
+  border-bottom: 1px solid var(--qf-line);
+  background: rgba(238, 241, 236, 0.92);
+  backdrop-filter: blur(6px);
+}
+
+.workspace-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-dot {
+  width: 7px;
+  height: 7px;
+  display: inline-block;
+  background: var(--qf-accent);
+}
+
+.workspace-text {
+  font-family: var(--qf-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--qf-muted);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.user-info:hover {
+  border-color: var(--qf-line);
+  background: var(--qf-surface);
+}
+
+.user-avatar {
+  background: var(--qf-primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.username {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--qf-ink);
+}
+
+.dropdown-arrow {
+  color: var(--qf-muted);
+  font-size: 11px;
+}
+
+@media (max-width: 768px) {
+  .home-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 30vh;
+    padding: 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--qf-line);
+  }
+
+  .main-content {
+    padding: 0 16px 32px;
+  }
+
+  .workspace-bar {
+    height: 54px;
+    margin: 0 -16px 20px;
+    padding: 0 16px;
   }
 }
 </style>

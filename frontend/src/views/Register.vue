@@ -3,6 +3,7 @@
     <div class="register-bg"></div>
     <el-card class="register-card">
       <div class="card-header">
+        <p class="qf-eyebrow">账户 / 注册</p>
         <h2>注册 QuizForge</h2>
         <p class="subtitle">开启你的智能学习之旅</p>
       </div>
@@ -279,5 +280,79 @@ const handleRegister = async () => {
   .card-header {
     margin-bottom: 20px;
   }
+}
+</style>
+
+<style scoped>
+/* ===== study desk auth ===== */
+.register-container {
+  background: transparent;
+}
+
+.register-bg {
+  background-color: var(--qf-paper);
+  background-image:
+    linear-gradient(var(--qf-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--qf-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.register-card {
+  position: relative;
+  padding: 30px 32px;
+  border: 1px solid var(--qf-line);
+  border-radius: 3px;
+  box-shadow: none;
+  background: var(--qf-surface);
+}
+
+.register-card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 24px;
+  width: 56px;
+  height: 4px;
+  background: var(--qf-accent);
+}
+
+.card-header h2 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.subtitle {
+  color: var(--qf-muted);
+}
+
+.register-btn {
+  border-radius: 3px;
+  background: var(--qf-primary) !important;
+  border-color: var(--qf-primary) !important;
+}
+
+.register-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+.footer-tip a {
+  color: var(--qf-primary);
+  font-weight: 700;
+}
+
+:deep(.el-form-item__label) {
+  font-family: var(--qf-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--qf-muted);
+}
+
+:deep(.el-input__wrapper) {
+  border-radius: 3px;
+  padding: 4px 12px;
+  box-shadow: 0 0 0 1px var(--qf-line) inset;
 }
 </style>

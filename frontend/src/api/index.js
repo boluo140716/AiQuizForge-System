@@ -22,8 +22,21 @@ export const updateProfile = (formData) =>
   })
 
 // ========== 测验 API ==========
-export const generateQuiz = (noteId, questionCount = 5) =>
-  axios.post(`/api/v1/quizzes/generate/${noteId}/`, { question_count: questionCount })
+export const generateQuiz = (noteId, questionCount = 5, idempotencyKey = '') =>
+  axios.post(
+    `/api/v1/quizzes/generate/${noteId}/`,
+    { question_count: questionCount },
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+  )
+
+export const generateAdaptiveQuiz = (payload) =>
+  axios.post('/api/v1/quizzes/adaptive/', payload)
+
+export const getMastery = () => axios.get('/api/v1/learning/mastery/')
+export const getLearningCurve = () => axios.get('/api/v1/learning/curve/')
+export const getReviewDue = () => axios.get('/api/v1/learning/review/due/')
+export const startReviewPractice = (count = 10) =>
+  axios.post('/api/v1/learning/review/practice/', { count })
 
 export const getQuizStatus = (quizId) =>
   axios.get(`/api/v1/quizzes/${quizId}/status/`)
@@ -37,8 +50,12 @@ export const deleteQuiz = (quizId) =>
 export const getQuizQuestions = (quizId) =>
   axios.get(`/api/v1/quizzes/${quizId}/questions/`)
 
-export const submitQuizAnswers = (quizId, answers) =>
-  axios.post(`/api/v1/quizzes/${quizId}/attempt/`, { answers })
+export const submitQuizAnswers = (quizId, answers, idempotencyKey = '') =>
+  axios.post(
+    `/api/v1/quizzes/${quizId}/attempt/`,
+    { answers },
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+  )
 
 export const getQuizAttempts = (quizId) =>
   axios.get(`/api/v1/quizzes/${quizId}/attempts/`)
@@ -61,3 +78,10 @@ export const getWrongQuestionTags = () =>
 
 export const removeWrongQuestion = (wrongId) =>
   axios.delete(`/api/v1/wrong-questions/${wrongId}/remove/`)
+
+// ========== 互操作 API ==========
+export const importNotes = (formData) =>
+  axios.post('/api/v1/io/import/', formData)
+
+export const exportQuestions = () =>
+  axios.get('/api/v1/io/export/', { responseType: 'blob' })

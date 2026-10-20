@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ===== Project-local / thesis =====
+docs/
+reports/
+.env.docker
+.env.*.local
+.vscode/
+*.code-workspace
+
+# Local runtime data
+backend/media/
+backend/staticfiles/
+backend/.claude/

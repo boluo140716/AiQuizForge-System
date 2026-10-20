@@ -1,4 +1,5 @@
 import json
+import uuid
 from notes.tests import BaseAPITestCase
 from notes.models import Notebook, Note, Quiz, Question
 
@@ -57,3 +58,28 @@ class AttemptTests(BaseAPITestCase):
             {'answers': []}
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_attempt_is_idempotent_with_same_key(self):
+        """相同 Idempotency-Key 重复提交只生成一条答题记录"""
+        from notes.models import QuizAttempt
+        payload = json.dumps({
+            'answers': [
+                {'question_id': self.q1.id, 'selected': 'B'},
+                {'question_id': self.q2.id, 'selected': 'D'},
+            ]
+        })
+        key = f'test-{uuid.uuid4()}'
+        first = self.client.post(
+            f'/api/v1/quizzes/{self.quiz.id}/attempt/', payload,
+            content_type='application/json', HTTP_IDEMPOTENCY_KEY=key
+        )
+        second = self.client.post(
+            f'/api/v1/quizzes/{self.quiz.id}/attempt/', payload,
+            content_type='application/json', HTTP_IDEMPOTENCY_KEY=key
+        )
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(first.data['attempt_id'], second.data['attempt_id'])
+        self.assertEqual(
+            QuizAttempt.objects.filter(user=self.user, quiz=self.quiz).count(), 1
+        )

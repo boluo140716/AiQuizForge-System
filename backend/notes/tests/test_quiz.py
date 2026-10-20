@@ -29,8 +29,39 @@ class QuizGenerationTests(BaseAPITestCase):
         quiz = Quiz.objects.get(id=quiz_id)
         self.assertEqual(quiz.user, self.user)
         self.assertEqual(quiz.note, self.note)
-        # 确认异步任务被调用了一次
-        mock_delay.assert_called_once_with(quiz_id)
+        # 确认异步任务被调用了一次（现在还会额外传 trace_id，故用更宽松的断言）
+        mock_delay.assert_called_once()
+        called_args, called_kwargs = mock_delay.call_args
+        self.assertEqual(called_args[0], quiz_id)
+        self.assertIn('trace_id', called_kwargs)
+
+    @patch('notes.task.generate_quiz.delay')
+    def test_generate_quiz_idempotent(self, mock_delay):
+        """同一个 Idempotency-Key 重复提交，只创建一个测验，第二次返回 duplicated=True"""
+        import uuid
+        mock_delay.return_value.id = 'fake-celery-task-id'
+        key = uuid.uuid4().hex
+        headers = {'HTTP_IDEMPOTENCY_KEY': key}
+
+        r1 = self.client.post(
+            f'/api/v1/quizzes/generate/{self.note.id}/',
+            {'question_count': 3}, **headers
+        )
+        r2 = self.client.post(
+            f'/api/v1/quizzes/generate/{self.note.id}/',
+            {'question_count': 3}, **headers
+        )
+
+        self.assertEqual(r1.status_code, 202)
+        self.assertEqual(r2.status_code, 202)
+        self.assertEqual(r1.data['quiz_id'], r2.data['quiz_id'])
+        self.assertTrue(r2.data.get('duplicated'))
+
+        from notes.models import Quiz
+        self.assertEqual(
+            Quiz.objects.filter(user=self.user, idempotency_key=key).count(),
+            1,
+        )
 
     def test_generate_quiz_content_too_short(self):
         """笔记内容太短时返回400"""

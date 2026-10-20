@@ -1,16 +1,18 @@
 import asyncio
 import difflib
 import hashlib
+import json
 import logging
 import threading
-import time
 from typing import List, Dict
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from decouple import config
-from prompt import build_prompt, split_content
-from schemas import QuestionItem, QuizOutput
+from prompt import build_prompt, split_content, build_kp_prompt
+from schemas import QuestionItem, QuizOutput, KPOutput
+from redis_store import cache_get, cache_set
+from quality import filter_by_quality, log_dropped
 
 logger = logging.getLogger(__name__)
 
@@ -18,39 +20,33 @@ USE_MOCK = config('USE_MOCK', default='false').lower() == 'true'
 _llm_client = None
 _llm_client_lock = threading.Lock()
 
-# 简易内存缓存（TTL 5 分钟，避免相同笔记重复调用 LLM）
+# 缓存 TTL（秒）：同一篇笔记 + 相同题数在 TTL 内命中，避免重复调用大模型。
+# 缓存存 Redis（多副本共享），键形如 llm:cache:{md5}。
 _CACHE_TTL = 300
-_CACHE_MAX_SIZE = 128
-_cache: dict[str, tuple[float, list[dict]]] = {}
-_cache_lock = None
 
-def _cache_key(content: str, count: int) -> str:
-    return hashlib.md5(f"{content}_{count}".encode()).hexdigest()
+def _cache_key(content: str, count: int, knowledge_points: list[str] | None = None) -> str:
+    # 知识点列表也参与缓存键：否则同一笔记带上不同知识点时会命中旧缓存
+    kp_part = "|".join(knowledge_points or [])
+    return "llm:cache:" + hashlib.md5(f"{content}_{count}_{kp_part}".encode()).hexdigest()
 
-def _get_cache_lock():
-    global _cache_lock
-    if _cache_lock is None:
-        _cache_lock = asyncio.Lock()
-    return _cache_lock
+async def _cache_get(content: str, count: int, knowledge_points: list[str] | None = None) -> list[dict] | None:
+    raw = await cache_get(_cache_key(content, count, knowledge_points))
+    if raw is None:
+        return None
+    try:
+        data = json.loads(raw)
+    except Exception:
+        logger.warning("缓存内容解析失败，忽略本次缓存")
+        return None
+    logger.info(f"缓存命中，直接返回 {len(data)} 道题目")
+    return data
 
-async def _cache_get(content: str, count: int) -> list[dict] | None:
-    key = _cache_key(content, count)
-    async with _get_cache_lock():
-        if key in _cache:
-            ts, data = _cache[key]
-            if time.time() - ts < _CACHE_TTL:
-                logger.info(f"缓存命中，直接返回 {len(data)} 道题目")
-                return data
-            del _cache[key]
-    return None
-
-async def _cache_set(content: str, count: int, data: list[dict]):
-    async with _get_cache_lock():
-        if len(_cache) >= _CACHE_MAX_SIZE:
-            oldest_key = min(_cache, key=lambda k: _cache[k][0])
-            del _cache[oldest_key]
-            logger.info("缓存已满，淘汰最旧条目")
-        _cache[_cache_key(content, count)] = (time.time(), data)
+async def _cache_set(content: str, count: int, data: list[dict], knowledge_points: list[str] | None = None):
+    await cache_set(
+        _cache_key(content, count, knowledge_points),
+        json.dumps(data, ensure_ascii=False),
+        _CACHE_TTL,
+    )
 
 
 
@@ -88,9 +84,10 @@ def _generate_mock_questions(content: str, count: int) -> List[Dict]:
     return mock_questions
 
 
-async def _generate_from_chunk(content: str, count: int, chunk_index: int, total_chunks: int) -> List[Dict]:
+async def _generate_from_chunk(content: str, count: int, chunk_index: int, total_chunks: int,
+                               knowledge_points: list[str] | None = None) -> List[Dict]:
     """对单个文本块生成题目"""
-    prompt_text = build_prompt(content, count, chunk_index, total_chunks)
+    prompt_text = build_prompt(content, count, chunk_index, total_chunks, knowledge_points)
     logger.info(f"Chunk {chunk_index+1}/{total_chunks} Prompt 长度: {len(prompt_text)} 字符")
 
     parser = JsonOutputParser(pydantic_object=QuizOutput)
@@ -168,19 +165,51 @@ def _deduplicate_questions(questions: list[dict], similarity_threshold: float = 
     return result
 
 
-async def generate_quiz_questions(content: str, count: int) -> List[Dict]:
+async def extract_knowledge_points(content: str, max_points: int = 8) -> List[Dict]:
+    """从笔记中抽取知识点，返回 [{"name":..., "description":...}]。"""
+    if USE_MOCK:
+        return [{"name": "示例知识点", "description": "模拟模式生成的知识点"}]
+
+    parser = JsonOutputParser(pydantic_object=KPOutput)
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "你是一个只输出 JSON 的知识点抽取助手。\n\n{format_instructions}"),
+        ("human", "{input}")
+    ])
+    chain = prompt | _get_llm_client().with_config({
+        "metadata": {"run_name": "extract_kp"}
+    }) | parser
+
+    prompt_text = build_kp_prompt(content, max_points)
+    result = await asyncio.wait_for(
+        asyncio.to_thread(
+            chain.invoke,
+            {
+                "input": prompt_text,
+                "format_instructions": parser.get_format_instructions()
+            }
+        ),
+        timeout=config('LLM_TIMEOUT', default=60, cast=int) + 30
+    )
+    return result.get('knowledge_points', [])
+
+
+async def generate_quiz_questions(content: str, count: int,
+                                  knowledge_points: list[str] | None = None) -> List[Dict]:
     if USE_MOCK:
         return _generate_mock_questions(content, count)
 
-    cached = await _cache_get(content, count)
+    cached = await _cache_get(content, count, knowledge_points)
     if cached is not None:
         return cached
 
     chunks = split_content(content)
 
     if len(chunks) == 1:
-        result = await _generate_from_chunk(chunks[0], count, 0, 1)
-        await _cache_set(content, count, result)
+        result = await _generate_from_chunk(chunks[0], count, 0, 1, knowledge_points)
+        result, dropped = filter_by_quality(result)
+        log_dropped(dropped, logger)
+        if result:
+            await _cache_set(content, count, result, knowledge_points)
         return result
 
     logger.info(f"笔记过长（{len(content)} 字符），已切分为 {len(chunks)} 块，使用 Map-Reduce 模式生成")
@@ -193,7 +222,7 @@ async def generate_quiz_questions(content: str, count: int) -> List[Dict]:
         chunk_count = questions_per_chunk + (1 if i < remainder else 0)
         if chunk_count == 0:
             continue
-        tasks.append(_generate_from_chunk(chunk, chunk_count, i, len(chunks)))
+        tasks.append(_generate_from_chunk(chunk, chunk_count, i, len(chunks), knowledge_points))
 
     chunk_results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -210,7 +239,10 @@ async def generate_quiz_questions(content: str, count: int) -> List[Dict]:
         logger.warning(f"Map-Reduce: {failed_chunks}/{len(chunks)} 个块失败，已跳过")
 
     all_questions = _deduplicate_questions(all_questions)
+    all_questions, dropped = filter_by_quality(all_questions)
+    log_dropped(dropped, logger)
     result = all_questions[:count]
-    await _cache_set(content, count, result)
+    if result:
+        await _cache_set(content, count, result, knowledge_points)
     logger.info(f"Map-Reduce 完成，共生成 {len(result)} 道题目（{len(chunks)} 块并发）")
     return result

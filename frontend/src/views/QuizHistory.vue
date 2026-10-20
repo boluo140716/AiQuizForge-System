@@ -2,11 +2,14 @@
   <div class="quiz-history-page">
     <!-- 顶部导航 -->
     <div class="page-header">
-      <el-button text @click="$router.back()">
+      <div class="header-left">
+        <p class="qf-eyebrow">记录 / 答题历史</p>
+        <h2 class="qf-title">答题历史</h2>
+      </div>
+      <el-button text class="back-btn" @click="$router.back()">
         <el-icon><ArrowLeft /></el-icon>
         返回
       </el-button>
-      <h2>答题历史</h2>
     </div>
 
     <!-- 统计概览 -->
@@ -293,23 +296,34 @@ onMounted(fetchHistory)
 
 <style scoped>
 .quiz-history-page {
-  min-height: 100vh;
-  padding: 24px;
-  background: #f5f5f7;
+  min-height: auto;
+  padding: 0;
+  background: transparent;
 }
 
 .page-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 26px;
 }
 
 .page-header h2 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  color: #1d1d1f;
+  font-size: clamp(26px, 3vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  color: var(--qf-ink);
+}
+
+.header-left {
+  min-width: 0;
+}
+
+.back-btn {
+  margin-bottom: 4px;
 }
 
 .stats-row {
@@ -317,20 +331,27 @@ onMounted(fetchHistory)
 }
 
 .stat-card {
-  border-radius: 12px;
+  position: relative;
+  border-radius: 3px !important;
+}
+
+.stat-card :deep(.el-card__body) {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
+  padding: 18px 16px;
+  text-align: center;
 }
 
 .stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
   color: #fff;
 }
 
@@ -351,14 +372,17 @@ onMounted(fetchHistory)
 }
 
 .stat-value {
+  font-family: var(--qf-mono);
   font-size: 28px;
   font-weight: 700;
-  color: #1d1d1f;
+  color: var(--qf-ink);
 }
 
 .stat-label {
-  font-size: 14px;
-  color: #909399;
+  font-family: var(--qf-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--qf-muted);
 }
 
 .quiz-list {
@@ -366,14 +390,27 @@ onMounted(fetchHistory)
 }
 
 .quiz-item {
+  position: relative;
   margin-bottom: 16px;
-  border-radius: 12px;
-  transition: all 0.3s ease;
+  border-radius: 3px !important;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.quiz-item::before,
+.stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 18px;
+  width: 48px;
+  height: 4px;
+  background: var(--qf-accent);
+  z-index: 1;
 }
 
 .quiz-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 rgba(22, 33, 28, 0.12);
 }
 
 .quiz-item-main {
@@ -390,8 +427,8 @@ onMounted(fetchHistory)
 .note-title {
   margin: 0 0 12px;
   font-size: 16px;
-  font-weight: 600;
-  color: #1d1d1f;
+  font-weight: 700;
+  color: var(--qf-ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -405,16 +442,18 @@ onMounted(fetchHistory)
 
 .question-num,
 .create-date {
-  font-size: 13px;
-  color: #909399;
+  font-family: var(--qf-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--qf-muted);
 }
 
 .quiz-stats {
   display: flex;
   gap: 24px;
   padding: 0 24px;
-  border-left: 1px solid #e0e0e0;
-  border-right: 1px solid #e0e0e0;
+  border-left: 1px solid var(--qf-line);
+  border-right: 1px solid var(--qf-line);
 }
 
 .stat-item {
@@ -431,16 +470,18 @@ onMounted(fetchHistory)
 }
 
 .stat-item.best .stat-num {
-  color: #67c23a;
+  color: var(--qf-primary);
 }
 
 .stat-item.rate .stat-num {
-  color: #e6a23c;
+  color: var(--qf-accent);
 }
 
 .stat-text {
-  font-size: 12px;
-  color: #909399;
+  font-family: var(--qf-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--qf-muted);
 }
 
 .quiz-actions {
@@ -502,7 +543,7 @@ onMounted(fetchHistory)
     width: 48px;
     height: 48px;
     font-size: 20px;
-    border-radius: 10px;
+    border-radius: 3px;
   }
 
   .quiz-item-main {
@@ -518,8 +559,8 @@ onMounted(fetchHistory)
     padding: 16px 0;
     border-left: none;
     border-right: none;
-    border-top: 1px solid #e0e0e0;
-    border-bottom: 1px solid #e0e0e0;
+    border-top: 1px solid var(--qf-line);
+    border-bottom: 1px solid var(--qf-line);
   }
 
   .stat-num {

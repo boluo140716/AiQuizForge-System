@@ -9,6 +9,7 @@
       <el-card class="edit-card">
         <template #header>
           <div class="card-header">
+            <p class="qf-eyebrow">{{ isEdit ? '笔记 / 编辑' : '笔记 / 新建' }}</p>
             <h2>{{ isEdit ? '编辑笔记' : '创建笔记' }}</h2>
           </div>
         </template>
@@ -38,7 +39,7 @@
               内容（支持 Markdown）
               <span class="label-hint">建议不超过 3000 字</span>
             </template>
-            <div ref="editorRef" class="editor-wrapper" />
+            <MarkdownEditor v-model="form.content_md" />
             <div class="content-count">共 {{ contentLength }} 字</div>
           </el-form-item>
 
@@ -51,9 +52,13 @@
           </el-form-item>
 
           <div v-if="isEdit" class="quiz-action">
-            <el-button type="warning" :loading="generating" @click="showQuizCountDialog = true" size="large">
-              <el-icon><MagicStick /></el-icon>
-              生成测验
+            <el-button type="warning" :disabled="generating" @click="showQuizCountDialog = true" size="large">
+              <el-icon v-if="generating" class="qf-spin"><Loading /></el-icon>
+              <el-icon v-else><MagicStick /></el-icon>
+              {{ generating ? '生成中…' : '生成测验' }}
+            </el-button>
+            <el-button type="success" :loading="generating" @click="handleAdaptivePractice" size="large">
+              自适应练习
             </el-button>
           </div>
 
@@ -92,22 +97,19 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useNotebookStore } from '@/stores/notebook'
-import { createNote, getNoteDetail, updateNote, deleteNote, generateQuiz, getQuizStatus } from '@/api'
+import { createNote, getNoteDetail, updateNote, deleteNote, generateQuiz, getQuizStatus, generateAdaptiveQuiz } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, MagicStick } from '@element-plus/icons-vue'
-import Editor from '@toast-ui/editor'
-import '@toast-ui/editor/dist/toastui-editor.css'
+import { ArrowLeft, MagicStick, Loading } from '@element-plus/icons-vue'
+import MarkdownEditor from '@/components/MarkdownEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
 const store = useNotebookStore()
 
 const isEdit = !!route.params.id
-const editorRef = ref(null)
-let editor = null
 
 const form = reactive({
   title: '',
@@ -123,6 +125,10 @@ const contentLength = ref(0)
 const showQuizCountDialog = ref(false)
 const quizCountToGenerate = ref(5)
 let pendingQuizGeneration = false
+let idempotencyKey = ''          // 本次"生成测验"意图的唯一编号（幂等键）
+
+const newIdempotencyKey = () =>
+  (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`)
 
 const onQuizCountDialogClosed = async () => {
   if (!pendingQuizGeneration) return
@@ -143,10 +149,10 @@ const onQuizCountDialogClosed = async () => {
 }
 
 const updateContentLength = () => {
-  if (editor) {
-    contentLength.value = editor.getMarkdown().length
-  }
+  contentLength.value = (form.content_md || '').length
 }
+
+watch(() => form.content_md, updateContentLength)
 
 onMounted(async () => {
   await store.fetchNotebooks()
@@ -165,28 +171,11 @@ onMounted(async () => {
     }
   }
 
-  if (editorRef.value) {
-    editor = new Editor({
-      el: editorRef.value,
-      initialValue: form.content_md,
-      previewStyle: 'vertical',
-      height: '500px',
-      events: {
-        change: () => updateContentLength()
-      }
-    })
-    updateContentLength()
-  }
-})
-
-onBeforeUnmount(() => {
-  if (editor) {
-    editor.destroy()
-  }
+  updateContentLength()
 })
 
 const handleSave = async () => {
-  if (!form.title.trim() || !editor.getMarkdown().trim()) {
+  if (!form.title.trim() || !(form.content_md || '').trim()) {
     ElMessage.warning('标题和内容不能为空')
     return
   }
@@ -195,7 +184,7 @@ const handleSave = async () => {
     const data = {
       title: form.title,
       notebook: form.notebook,
-      content_md: editor.getMarkdown(),
+      content_md: form.content_md,
       tags: tagInput.value.split(',').map(t => t.trim()).filter(Boolean)
     }
     if (isEdit) {
@@ -228,52 +217,113 @@ const handleDelete = async () => {
 }
 
 const handleGenerateQuiz = async () => {
+  // 每次点击"生成测验"生成一个新的幂等键：
+  // 同一次点击产生的重复/重试请求，后端只会创建一个测验。
+  idempotencyKey = newIdempotencyKey()
   pendingQuizGeneration = true
   showQuizCountDialog.value = false
+}
+
+const handleAdaptivePractice = async () => {
+  try {
+    generating.value = true
+    const res = await generateAdaptiveQuiz({
+      note_id: Number(route.params.id),
+      count: quizCountToGenerate.value,
+    })
+    router.push('/quiz/' + res.data.practice_quiz_id)
+  } catch (err) {
+    ElMessage.error(err.response?.data?.detail || '自适应练习生成失败')
+  } finally {
+    generating.value = false
+  }
+}
+
+const pollQuizProgress = (quizId) => {
+  let pollCount = 0
+  const MAX_POLL = 60
+  const pollStatus = async () => {
+    pollCount++
+    try {
+      const statusRes = await getQuizStatus(quizId)
+      const quiz = statusRes.data
+
+      if (quiz.status === 'completed') {
+        ElMessage.success('测验生成完成！正在跳转...')
+        router.push('/quiz/' + quizId)
+          .catch(err => ElMessage.error('跳转失败：' + (err.message || '路由错误')))
+        return
+      } else if (quiz.status === 'failed') {
+        ElMessage.error('测验生成失败：' + (quiz.error_message || '未知错误'))
+      } else if (pollCount >= MAX_POLL) {
+        ElMessage.error('测验生成超时，请刷新页面重试')
+      } else {
+        setTimeout(pollStatus, 2000)
+        return
+      }
+    } catch (e) {
+      // 网络错误：重试而不是直接停止（避免 Celery 慢导致失败）
+      if (pollCount < MAX_POLL) {
+        setTimeout(pollStatus, 2000)
+        return
+      }
+      ElMessage.error('检查生成状态失败:' + (e.response?.data?.detail || e.message || '网络错误'))
+    }
+    generating.value = false
+  }
+  setTimeout(pollStatus, 2000)
+}
+
+const watchQuizProgress = (quizId) => {
+  // EventSource 不能带自定义请求头，所以 token 通过 query 参数传
+  const token = localStorage.getItem('access_token') || ''
+  const url = `/api/v1/quizzes/${quizId}/stream/?token=${encodeURIComponent(token)}`
+  let es = null
+  let finished = false
+
+  const finish = () => {
+    if (finished) return
+    finished = true
+    try { if (es) es.close() } catch (e) { /* ignore */ }
+    generating.value = false
+  }
+
+  try {
+    es = new EventSource(url)
+  } catch (e) {
+    pollQuizProgress(quizId)
+    return
+  }
+
+  es.onmessage = (event) => {
+    let data
+    try { data = JSON.parse(event.data) } catch (e) { return }
+    const stage = data.stage
+    if (stage === 'done' || stage === 'completed') {
+      ElMessage.success('测验生成完成！正在跳转...')
+      finish()
+      router.push('/quiz/' + quizId).catch(err => ElMessage.error('跳转失败：' + (err.message || '路由错误')))
+    } else if (stage === 'failed') {
+      ElMessage.error('测验生成失败：' + (data.message || '未知错误'))
+      finish()
+    }
+  }
+
+  es.onerror = () => {
+    // SSE 异常时回退到轮询，保证功能可用
+    finish()
+    pollQuizProgress(quizId)
+  }
 }
 
 const doGenerateQuiz = async () => {
   try{
     generating.value = true
-    const res = await generateQuiz(route.params.id, quizCountToGenerate.value)
+    const res = await generateQuiz(route.params.id, quizCountToGenerate.value, idempotencyKey)
     currentQuizId.value = res.data.quiz_id
 
     ElMessage.success('测验生成中，请稍候...')
-
-    // 轮询检查生成状态
-    let pollCount = 0
-    const MAX_POLL = 60
-    const pollStatus = async () => {
-      pollCount++
-      try {
-        const statusRes = await getQuizStatus(currentQuizId.value)
-        const quiz = statusRes.data
-
-        if (quiz.status === 'completed') {
-          ElMessage.success('测验生成完成！正在跳转...')
-          router.push('/quiz/' + currentQuizId.value)
-            .catch(err => ElMessage.error('跳转失败：' + (err.message || '路由错误')))
-          return
-        } else if (quiz.status === 'failed') {
-          ElMessage.error('测验生成失败：' + (quiz.error_message || '未知错误'))
-        } else if (pollCount >= MAX_POLL) {
-          ElMessage.error('测验生成超时，请刷新页面重试')
-        } else {
-          setTimeout(pollStatus, 2000)
-          return
-        }
-      } catch (e) {
-        // 网络错误：重试而不是直接停止（避免 Celery 慢导致失败）
-        if (pollCount < MAX_POLL) {
-          setTimeout(pollStatus, 2000)
-          return
-        }
-        ElMessage.error('检查生成状态失败:'+(e.response?.data?.detail || e.message || '网络错误'))
-      }
-      generating.value = false
-    }
-
-    setTimeout(pollStatus, 2000)
+    watchQuizProgress(currentQuizId.value)
   } catch (err) {
     ElMessage.error('生成测验失败:'+(err.response?.data?.detail || err.message || '网络错误'))
     generating.value = false
@@ -479,6 +529,130 @@ const doGenerateQuiz = async () => {
 
   .back-btn {
     margin-bottom: 12px;
+  }
+}
+</style>
+
+<style scoped>
+/* ===== note sheet ===== */
+.note-edit-page {
+  padding: 0;
+  background: transparent;
+}
+
+.back-btn {
+  background: transparent;
+  border: 1px solid var(--qf-line);
+  color: var(--qf-ink-soft);
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.back-btn:hover {
+  transform: none;
+  background: var(--qf-surface);
+  border-color: var(--qf-primary);
+  color: var(--qf-primary);
+  box-shadow: none;
+}
+
+.edit-card {
+  position: relative;
+  border: 1px solid var(--qf-line);
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.edit-card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 22px;
+  width: 56px;
+  height: 4px;
+  background: var(--qf-accent);
+}
+
+.edit-card :deep(.el-card__header) {
+  border-bottom: 1px solid var(--qf-line);
+  padding: 22px 26px;
+}
+
+.edit-card :deep(.el-card__body) {
+  padding: 26px;
+}
+
+.card-header h2 {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.edit-form :deep(.el-form-item__label) {
+  font-family: var(--qf-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--qf-muted);
+}
+
+.edit-form :deep(.el-input__wrapper),
+.edit-form :deep(.el-select .el-input__wrapper) {
+  border-radius: 3px;
+  padding: 4px 12px;
+  background: var(--qf-surface);
+  box-shadow: 0 0 0 1px var(--qf-line) inset;
+  border: none;
+}
+
+.edit-form :deep(.el-input__wrapper.is-focus),
+.edit-form :deep(.el-select .el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--qf-primary) inset;
+}
+
+.editor-wrapper {
+  border: 1px solid var(--qf-line);
+  border-radius: 3px;
+}
+
+.quiz-action :deep(.el-button--warning) {
+  border-radius: 3px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.quiz-action :deep(.el-button--warning:hover) {
+  transform: none;
+  box-shadow: none;
+}
+
+.save-btn {
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.save-btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+.form-actions :deep(.el-button--danger) {
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.form-actions :deep(.el-button--danger:hover) {
+  transform: none;
+  box-shadow: none;
+}
+
+.qf-spin {
+  animation: qf-spin 0.9s linear infinite;
+}
+
+@keyframes qf-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>

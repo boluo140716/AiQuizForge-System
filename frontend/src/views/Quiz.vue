@@ -6,7 +6,10 @@
         <el-icon><ArrowLeft /></el-icon>
         返回
       </el-button>
-      <h2>测验答题</h2>
+      <div>
+        <p class="qf-eyebrow">测验 / 答题</p>
+        <h2>测验答题</h2>
+      </div>
       <div class="quiz-info">
         <el-tag type="info">第 {{ currentIndex + 1 }} / {{ questions.length }} 题</el-tag>
       </div>
@@ -166,6 +169,7 @@ const selectedAnswers = ref({})
 const currentIndex = ref(0)
 const submitted = ref(false)
 const result = ref(null)
+const submitKey = ref('')
 
 const currentQuestion = computed(() => questions.value[currentIndex.value] || {})
 const answeredQuestions = computed(() => {
@@ -236,6 +240,10 @@ const submitQuiz = async () => {
   }
 
   submitting.value = true
+  // 同一次提交复用同一个幂等键，网络重试不会产生重复答题记录
+  if (!submitKey.value) {
+    submitKey.value = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  }
   try {
     const answers = Object.entries(selectedAnswers.value)
       .filter(([_, selected]) => selected != null)
@@ -244,7 +252,7 @@ const submitQuiz = async () => {
         selected
       }))
 
-    const res = await submitQuizAnswers(quizId.value, answers)
+    const res = await submitQuizAnswers(quizId.value, answers, submitKey.value)
     result.value = res.data
     submitted.value = true
     ElMessage.success('提交成功')
@@ -258,6 +266,7 @@ const submitQuiz = async () => {
 const retryQuiz = () => {
   submitted.value = false
   result.value = null
+  submitKey.value = ''
   selectedAnswers.value = {}
   questions.value.forEach(q => {
     selectedAnswers.value[q.id] = null
@@ -725,6 +734,157 @@ onBeforeRouteLeave((to, from, next) => {
     flex: 1;
     min-width: 120px;
     padding: 10px 20px;
+  }
+}
+</style>
+
+<style scoped>
+/* ===== study desk quiz ===== */
+.quiz-page {
+  min-height: auto;
+  padding: 0;
+  background: transparent;
+}
+
+.page-header h2 {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.question-card,
+.result-card,
+.navigation {
+  position: relative;
+  border: 1px solid var(--qf-line);
+  border-radius: 3px;
+  background: var(--qf-surface);
+  box-shadow: none;
+}
+
+.question-card::before,
+.result-card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 22px;
+  width: 56px;
+  height: 4px;
+  background: var(--qf-primary);
+}
+
+.question-card :deep(.el-card__body),
+.result-card :deep(.el-card__body) {
+  padding: 30px;
+}
+
+.question-stem {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.65;
+  color: var(--qf-ink);
+}
+
+.option-item {
+  padding: 15px 18px;
+  background: var(--qf-surface);
+  border: 1px solid var(--qf-line);
+  border-radius: 3px;
+  gap: 14px;
+}
+
+.option-item:hover {
+  background: var(--qf-primary-soft);
+  border-color: var(--qf-primary);
+}
+
+.option-item.selected {
+  background: var(--qf-primary);
+  border-color: var(--qf-primary);
+}
+
+.option-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 2px;
+  border: 1px solid var(--qf-line);
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--qf-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--qf-ink);
+}
+
+.option-item.selected .option-badge {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+.option-item.selected .option-text {
+  color: #fff;
+}
+
+.navigation {
+  padding: 16px 20px;
+  gap: 20px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--qf-line);
+}
+
+.dot.answered {
+  background: var(--qf-muted);
+}
+
+.dot.active {
+  background: var(--qf-primary);
+  transform: scale(1.25);
+}
+
+.review-item {
+  border-radius: 3px;
+  border-left-width: 3px;
+  background: var(--qf-paper);
+}
+
+.review-item.correct {
+  border-left-color: var(--qf-primary);
+  background: var(--qf-primary-soft);
+}
+
+.review-item.wrong {
+  border-left-color: var(--qf-danger);
+  background: var(--qf-danger-soft);
+}
+
+.score-circle {
+  border-radius: 2px;
+  background: var(--qf-paper);
+}
+
+@media (max-width: 768px) {
+  .quiz-page {
+    padding: 0;
+  }
+
+  .page-header h2 {
+    font-size: 20px;
+  }
+
+  .question-card :deep(.el-card__body),
+  .result-card :deep(.el-card__body) {
+    padding: 20px 16px;
+  }
+
+  .question-stem {
+    font-size: 17px;
   }
 }
 </style>

@@ -12,7 +12,8 @@ class NotebookSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'user']
 
     def get_note_count(self, obj):
-        return obj.notes.count()
+        count = getattr(obj, '_note_count', None)
+        return count if count is not None else obj.notes.count()
 
     def validate_name(self, value):
         user = self.context['request'].user

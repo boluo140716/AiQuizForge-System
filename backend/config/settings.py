@@ -161,6 +161,25 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Shanghai'
 
+# ===== Celery 可靠性配置 =====
+CELERY_TASK_ACKS_LATE = True                    # 任务执行完才确认；worker 崩溃时任务可重投
+CELERY_TASK_REJECT_ON_WORKER_LOST = True        # worker 掉线，任务退回队列
+CELERY_TASK_ACKS_ON_FAILURE_OR_TIMEOUT = False  # 失败/超时不提前确认（交给重试与看门狗）
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1           # 一次只取一个任务，避免任务囤积在单个 worker
+CELERY_TASK_TIME_LIMIT = 300                    # 单任务硬超时 5 分钟
+CELERY_TASK_SOFT_TIME_LIMIT = 240               # 单任务软超时 4 分钟（可捕获做清理）
+
+# 看门狗：超过该分钟数仍无心跳更新的 processing 任务，视为卡死并回收
+QUIZ_STUCK_MINUTES = 10
+
+# Celery Beat 定时任务：每 2 分钟跑一次看门狗
+CELERY_BEAT_SCHEDULE = {
+    'reap-stuck-quizzes': {
+        'task': 'notes.task.reap_stuck_quizzes',
+        'schedule': 120.0,
+    },
+}
+
 # ===== AI 服务配置 =====
 AI_SERVICE_URL = config('AI_SERVICE_URL', default='http://127.0.0.1:8001')
 AI_SERVICE_TOKEN = config('AI_SERVICE_TOKEN', default='quizforge-internal-secret-token-2026')

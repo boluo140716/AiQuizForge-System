@@ -1,7 +1,10 @@
 <template>
   <div class="note-list-page">
     <div class="page-header">
-      <h2>我的笔记</h2>
+      <div>
+        <p class="qf-eyebrow">笔记 / 笔记库</p>
+        <h2 class="qf-title">我的笔记</h2>
+      </div>
     </div>
 
     <!-- 工具栏 -->
@@ -30,10 +33,22 @@
           :prefix-icon="Search"
         />
       </div>
-      <el-button type="primary" @click="$router.push('/notes/new')">
-        <el-icon><Plus /></el-icon>
-        新建笔记
-      </el-button>
+      <div class="toolbar-right">
+        <input
+          ref="importInput"
+          type="file"
+          accept=".md,.markdown,.txt"
+          multiple
+          class="hidden-input"
+          @change="handleImport"
+        />
+        <el-button :loading="importing" @click="triggerImport">导入 Markdown</el-button>
+        <el-button @click="handleExport">导出题目 CSV</el-button>
+        <el-button type="primary" @click="$router.push('/notes/new')">
+          <el-icon><Plus /></el-icon>
+          新建笔记
+        </el-button>
+      </div>
     </div>
 
     <!-- 笔记卡片列表 -->
@@ -119,7 +134,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, MoreFilled } from '@element-plus/icons-vue'
 import { useNotebookStore } from '@/stores/notebook'
-import { getNotes, deleteNote, getNotebooks } from '@/api'
+import { getNotes, deleteNote, getNotebooks, importNotes, exportQuestions } from '@/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -132,6 +147,8 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = 12
 const searchKeyword = ref('')
+const importInput = ref(null)
+const importing = ref(false)
 
 // 获取笔记本列表
 const fetchNotebooks = async () => {
@@ -199,6 +216,42 @@ const handleNoteCommand = async (cmd, note) => {
     } catch (e) {
       // 用户取消删除
     }
+  }
+}
+
+const triggerImport = () => importInput.value?.click()
+
+const handleImport = async (event) => {
+  const files = Array.from(event.target.files || [])
+  if (!files.length) return
+
+  importing.value = true
+  try {
+    const formData = new FormData()
+    files.forEach(file => formData.append('files', file))
+    if (store.currentNotebookId) formData.append('notebook_id', store.currentNotebookId)
+    const res = await importNotes(formData)
+    ElMessage.success(`已导入 ${res.data.created} 篇笔记`)
+    await fetchNotes()
+  } catch (err) {
+    ElMessage.error(err.response?.data?.detail || '导入失败')
+  } finally {
+    importing.value = false
+    event.target.value = ''
+  }
+}
+
+const handleExport = async () => {
+  try {
+    const res = await exportQuestions()
+    const url = URL.createObjectURL(new Blob([res.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'quizforge_questions.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    ElMessage.error('导出失败')
   }
 }
 
@@ -464,5 +517,123 @@ watch(() => route.query.notebook, () => {
   .note-card:hover {
     transform: translateY(-3px);
   }
+}
+</style>
+
+<style scoped>
+/* ===== index cards ===== */
+.note-list-page {
+  min-height: auto;
+  padding: 0;
+  background: transparent;
+}
+
+.page-header {
+  margin-bottom: 26px;
+}
+
+.toolbar {
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 1px dashed var(--qf-line);
+}
+
+.toolbar :deep(.el-select .el-input__wrapper),
+.toolbar :deep(.el-input .el-input__wrapper) {
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--qf-line) inset;
+  background: var(--qf-surface);
+}
+
+.toolbar :deep(.el-button) {
+  border-radius: 3px;
+  box-shadow: none;
+  transform: none;
+}
+
+.toolbar :deep(.el-button:hover) {
+  transform: none;
+  box-shadow: none;
+}
+
+.note-card {
+  position: relative;
+  border: 1px solid var(--qf-line);
+  border-radius: 3px;
+  background: var(--qf-surface);
+  box-shadow: none;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.note-card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 18px;
+  width: 48px;
+  height: 4px;
+  background: var(--qf-accent);
+}
+
+.note-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 rgba(22, 33, 28, 0.14);
+}
+
+.note-card-header {
+  margin-bottom: 10px;
+}
+
+.note-title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--qf-ink);
+}
+
+.note-meta {
+  font-family: var(--qf-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--qf-muted);
+}
+
+.note-meta :deep(.el-tag),
+.note-tags :deep(.el-tag) {
+  background: transparent;
+  border-color: var(--qf-line);
+  color: var(--qf-muted);
+}
+
+.more-icon {
+  color: var(--qf-muted);
+}
+
+.more-icon:hover {
+  background: var(--qf-primary-soft);
+  color: var(--qf-primary);
+}
+
+.pagination-wrap :deep(.el-pagination) {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .note-list-page {
+    padding: 0;
+  }
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hidden-input {
+  display: none;
 }
 </style>
